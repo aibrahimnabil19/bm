@@ -3,7 +3,7 @@ import Login from "@/components/Login";
 
 export default function Home() {
   return (
-    <main className="max-w-5xl mx-auto pt-8 min-h-screen flex flex-col items-center gap-10">
+    <main className="max-w-5xl mx-auto min-h-screen flex flex-col items-center justify-center">
       {/* <Header/> */}
       <Login/>
     </main>
