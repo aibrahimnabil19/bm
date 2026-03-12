@@ -1,20 +1,66 @@
 "use client";
 import React, { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 
 export default function Login() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
     if (!username.trim() || !password) {
-      setError('Please enter both username and password.')
+      setError('Veuillez entrer votre nom d\'utilisateur et mot de passe.')
       return
     }
-    console.log('logging in', { username, password })
+
+    setLoading(true)
+    try {
+      // 1. Look up the profile to get the email linked to this username
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, role')
+        .eq('username', username.trim().toLowerCase())
+        .single()
+
+      if (profileError || !profile) {
+        setError('Nom d\'utilisateur ou mot de passe incorrect.')
+        return
+      }
+
+      // 2. Get the email from auth.users via a known convention
+      //    (we use username@bmtrading.app as the email format)
+      const email = `${username.trim().toLowerCase()}@bmtrading.app`
+
+      // 3. Sign in with Supabase Auth
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (signInError) {
+        setError('Nom d\'utilisateur ou mot de passe incorrect.')
+        return
+      }
+
+      // 4. Redirect based on role
+      if (profile.role === 'admin') {
+        router.push('/admin')
+      } else {
+        router.push('/dashboard') // other roles → other pages later
+      }
+
+    } catch (err) {
+      setError('Une erreur est survenue. Veuillez réessayer.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -93,9 +139,10 @@ export default function Login() {
 
               <button
                 type="submit"
-                className="w-full inline-flex items-center justify-center rounded-lg bg-indigo-600 text-white px-4 py-3 text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                disabled={loading}
+                className="w-full inline-flex items-center justify-center rounded-lg bg-indigo-600 text-white px-4 py-3 text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition disabled:opacity-60"
               >
-                Se connecter
+                {loading ? 'Connexion...' : 'Se connecter'}
               </button>
 
             </form>
