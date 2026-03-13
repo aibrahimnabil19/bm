@@ -5,7 +5,8 @@ import React, { useState } from "react";
 export default function ReserveModal({ isOpen, onClose }) {
   const [formData, setFormData] = useState({
     numeroReservation: "",
-    type: "essence", // default value
+    dateReservation: "", // Added this to state
+    type: "essence",
     litre: "",
     price: "",
     litreEssence: "",
@@ -24,7 +25,6 @@ export default function ReserveModal({ isOpen, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     console.log("Form Data Submitted:", formData);
-    // Add your submit logic here (e.g., API call)
     onClose();
   };
 
@@ -44,6 +44,8 @@ export default function ReserveModal({ isOpen, onClose }) {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          
+          {/* Numero de Reservation */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Numéro de réservation
@@ -55,6 +57,21 @@ export default function ReserveModal({ isOpen, onClose }) {
               onChange={handleChange}
               className="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-[#d27045] focus:border-[#d27045] outline-none transition"
               placeholder="Ex: RES-2026-001"
+              required
+            />
+          </div>
+
+          {/* Date de Reservation - Added here */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Date de réservation
+            </label>
+            <input
+              type="date"
+              name="dateReservation"
+              value={formData.dateReservation}
+              onChange={handleChange}
+              className="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-[#d27045] focus:border-[#d27045] outline-none transition bg-white"
               required
             />
           </div>
@@ -104,7 +121,7 @@ export default function ReserveModal({ isOpen, onClose }) {
               </div>
             </div>
           ) : (
-            <div className="space-y-4 p-4 bg-slate-50 border border-slate-100 rounded-lg">
+            <div className="space-y-4 p-4 bg-slate-50 border border-slate-100 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
               <h4 className="text-sm font-semibold text-slate-600">Détails Essence</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>

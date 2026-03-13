@@ -84,10 +84,6 @@ export default function Sonidep() {
                  </button>
                </div>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-                  <div className="p-4 rounded-lg border border-slate-100 bg-slate-50">Placehold A</div>
-                  <div className="p-4 rounded-lg border border-slate-100 bg-slate-50">Placehold B</div>
-               </div>
              </div>
           )}
 
