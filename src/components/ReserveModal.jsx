@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
+import { supabase } from '@/lib/supabase';
 
-export default function ReserveModal({ isOpen, onClose }) {
+export default function ReserveModal({ isOpen, onClose, onSaved}) {
   const [formData, setFormData] = useState({
     numeroReservation: "",
     dateReservation: "", // Added this to state
@@ -22,11 +23,38 @@ export default function ReserveModal({ isOpen, onClose }) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("Form Data Submitted:", formData);
-    onClose();
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  const payload = {
+    numero_reservation: formData.numeroReservation,
+    date_reservation: formData.dateReservation,
+    type: formData.type,
+    // If mixed, use the split fields; otherwise put value in the right column
+    litre_essence: formData.type === 'gasoil' ? null
+      : formData.type === 'essence et gasoil' ? Number(formData.litreEssence)
+      : Number(formData.litre),
+    litre_gasoil: formData.type === 'essence' ? null
+      : formData.type === 'essence et gasoil' ? Number(formData.litreGasoil)
+      : Number(formData.litre),
+    price_essence: formData.type === 'gasoil' ? null
+      : formData.type === 'essence et gasoil' ? Number(formData.priceEssence)
+      : Number(formData.price),
+    price_gasoil: formData.type === 'essence' ? null
+      : formData.type === 'essence et gasoil' ? Number(formData.priceGasoil)
+      : Number(formData.price),
   };
+
+  const { error } = await supabase.from('reservations').insert(payload);
+
+  if (error) {
+    alert('Erreur: ' + error.message);
+    return;
+  }
+
+  onClose();           // close modal
+  onSaved?.();         // tell parent to refresh ← we'll use this below
+};
 
   const isMixed = formData.type === "essence et gasoil";
 
