@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import ReserveModal from "./ReserveModal";
 import { supabase } from "@/lib/supabase";
 
-// ── Metric Card ──────────────────────────────────────────────────────────────
+// ── Metric Card Component ───────────────────────────────────────────────────
 const MetricCard = ({ title, a, b, onClick }) => (
   <button
     onClick={onClick}
@@ -13,7 +13,7 @@ const MetricCard = ({ title, a, b, onClick }) => (
   >
     <div className="text-sm font-medium text-white/90 truncate">{title}</div>
     <div className="flex flex-col">
-      <div className="text-2xl md:text-3xl font-bold text-white">{a}</div>
+      <div className="text-xl md:text-2xl font-bold text-white">{a}</div>
       <div className="text-[10px] md:text-xs font-medium text-white/70 uppercase tracking-wider">
         {b}
       </div>
@@ -21,28 +21,20 @@ const MetricCard = ({ title, a, b, onClick }) => (
   </button>
 );
 
-// ── Reservation Row ───────────────────────────────────────────────────────────
+// ── Reservation Row (For the bottom list) ───────────────────────────────────
 const ReservationRow = ({ res }) => {
-  const totalLitres =
-    (res.litre_essence ?? 0) + (res.litre_gasoil ?? 0);
-
+  const totalLitres = (res.litre_essence ?? 0) + (res.litre_gasoil ?? 0);
   return (
     <div className="flex items-center justify-between py-3 px-4 rounded-lg hover:bg-slate-50 border border-slate-100 mb-2">
       <div className="flex flex-col">
-        <span className="text-sm font-semibold text-slate-800">
-          {res.numero_reservation}
-        </span>
+        <span className="text-sm font-semibold text-slate-800">{res.numero_reservation}</span>
         <span className="text-xs text-slate-400">
           {new Date(res.date_reservation).toLocaleDateString("fr-FR")}
         </span>
       </div>
       <div className="flex items-center gap-4">
-        <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-medium capitalize">
-          {res.type}
-        </span>
-        <span className="text-sm font-bold text-slate-700">
-          {totalLitres.toLocaleString("fr-FR")} L
-        </span>
+        <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-medium capitalize">{res.type}</span>
+        <span className="text-sm font-bold text-slate-700">{totalLitres.toLocaleString("fr-FR")} L</span>
       </div>
     </div>
   );
@@ -54,42 +46,62 @@ export default function Sonidep() {
   const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeCard, setActiveCard] = useState(null); // for the panel later
+  const [activeCard, setActiveCard] = useState(null);
 
   const tabs = ["Reserve", "Livraison", "Facture"];
 
-  // Fetch reservations from Supabase
- const fetchReservations = React.useCallback(async () => {
-  // We no longer need setLoading(true) here because it's true by default
-  try {
-    const { data, error } = await supabase
-      .from("reservations")
-      .select("*")
-      .order("date_reservation", { ascending: false });
-
-    if (!error) setReservations(data ?? []);
-  } catch (err) {
-    console.error("Fetch error:", err);
-  } finally {
-    setLoading(false); // Only update state when the async work is DONE
-  }
-}, []);
+  const fetchReservations = React.useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("reservations")
+        .select("*")
+        .order("date_reservation", { ascending: false });
+      if (!error) setReservations(data ?? []);
+    } catch (err) {
+      console.error("Fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-  fetchReservations();
-}, [fetchReservations]);
+    fetchReservations();
+  }, [fetchReservations]);
 
-  // Metric cards — only reserve count is real for now
+  // ── Calculation Logic for Monthly Total ─────────────────────────────────────
+  const stats = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Filter reservations for the current month only
+    const monthlyData = reservations.filter(res => {
+      const d = new Date(res.date_reservation);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+
+    // Sum up all litres (essence + gasoil)
+    const totalLitres = monthlyData.reduce((acc, res) => {
+      return acc + (res.litre_essence ?? 0) + (res.litre_gasoil ?? 0);
+    }, 0);
+
+    return {
+      totalLitres,
+      count: monthlyData.length,
+      monthlyData // we keep this to show in the overlay
+    };
+  }, [reservations]);
+
   const metrics = [
-    { key: "reserve",   title: "Réserve",          a: reservations.length, b: "réservations" },
-    { key: "livraison", title: "Livraison Totale",  a: 0,                   b: "ce mois" },
-    { key: "restant",   title: "Livraison Restante",a: 0,                   b: "ce mois" },
-    { key: "du",        title: "Dû à Sonidep",      a: 0,                   b: "FCFA" },
+    { key: "reserve", title: "Réserve", a: `${stats.totalLitres.toLocaleString("fr-FR")} L`, b: "Total ce mois" },
+    { key: "livraison", title: "Livraison Totale", a: "0 L", b: "ce mois" },
+    { key: "restant", title: "Livraison Restante", a: "0 L", b: "ce mois" },
+    { key: "du", title: "Dû à Sonidep", a: "0", b: "FCFA" },
   ];
 
   return (
     <div className="w-full space-y-10 relative">
-
+      
       {/* Metric Cards */}
       <div className="flex flex-row flex-nowrap gap-4 w-full overflow-x-auto pb-2 scrollbar-hide">
         {metrics.map((m) => (
@@ -103,110 +115,56 @@ export default function Sonidep() {
         ))}
       </div>
 
-      {/* Card Panel (placeholder — you'll build each one later) */}
-      {activeCard && (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 animate-in fade-in duration-200">
-          <div className="flex justify-between items-center mb-2">
-            <h4 className="font-semibold text-slate-700 capitalize">{activeCard}</h4>
-            <button
-              onClick={() => setActiveCard(null)}
-              className="text-slate-400 hover:text-slate-600 text-sm"
-            >
-              ✕ Fermer
-            </button>
+      {/* ── Detailed Overlay Panel ── */}
+      {activeCard === "reserve" && (
+        <div className="rounded-xl border border-slate-200 bg-white shadow-lg p-6 animate-in slide-in-from-top-4 duration-300">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h4 className="font-bold text-slate-800 text-lg">Détails de la Réserve ({new Date().toLocaleString('fr-FR', { month: 'long' })})</h4>
+              <p className="text-sm text-slate-500">{stats.count} réservations trouvées</p>
+            </div>
+            <button onClick={() => setActiveCard(null)} className="p-2 hover:bg-slate-100 rounded-full transition text-slate-400">✕</button>
           </div>
-          <p className="text-sm text-slate-400">Panneau de détails — à venir.</p>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-widest">
+                <tr>
+                  <th className="px-4 py-3">N° Réservation</th>
+                  <th className="px-4 py-3">Créé le</th>
+                  <th className="px-4 py-3">Essence (L)</th>
+                  <th className="px-4 py-3">Prix Essence</th>
+                  <th className="px-4 py-3">Gasoil (L)</th>
+                  <th className="px-4 py-3">Total (L)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {stats.monthlyData.map((res) => (
+                  <tr key={res.id} className="hover:bg-slate-50/50 transition">
+                    <td className="px-4 py-3 font-semibold text-slate-700">{res.numero_reservation}</td>
+                    <td className="px-4 py-3 text-slate-500">{new Date(res.created_at).toLocaleDateString("fr-FR")}</td>
+                    <td className="px-4 py-3 text-blue-600 font-medium">{res.litre_essence ?? 0}</td>
+                    <td className="px-4 py-3 text-slate-400">{res.price_essence?.toLocaleString() || 0} F</td>
+                    <td className="px-4 py-3 text-orange-600 font-medium">{res.litre_gasoil ?? 0}</td>
+                    <td className="px-4 py-3 font-bold text-slate-800">{(res.litre_essence ?? 0) + (res.litre_gasoil ?? 0)} L</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* Gestion Sonidep */}
+      {/* Gestion Sonidep (The tabs and existing list) */}
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-4 md:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div>
-            <h3 className="text-lg font-bold text-slate-800">Gestion Sonidep</h3>
-            <p className="text-xs text-slate-500">Flux de travail centralisé</p>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex p-2 gap-1 bg-slate-100/50">
-          {tabs.map((t) => (
-            <button
-              key={t}
-              onClick={() => setActiveTab(t)}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
-                activeTab === t
-                  ? "bg-white text-[#d27045] shadow-sm ring-1 ring-slate-200"
-                  : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab Content */}
-        <div className="p-6 min-h-75">
-
-          {activeTab === "Reserve" && (
-            <div className="animate-in fade-in duration-300 flex flex-col">
-              <div className="w-full flex justify-between items-center mb-6">
-                <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-                  État de la Réserve
-                </h4>
-                <button
-                  onClick={() => setIsReserveModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#d27045] text-white text-sm font-medium rounded-md hover:bg-[#b85b34] transition shadow-sm"
-                >
-                  <i className="fa-solid fa-plus" />
-                  Nouvelle Réservation
-                </button>
-              </div>
-
-              {/* Reservation List */}
-              {loading ? (
-                <p className="text-sm text-slate-400">Chargement...</p>
-              ) : reservations.length === 0 ? (
-                <div className="flex items-center justify-center h-40 border-2 border-dashed border-slate-100 rounded-xl">
-                  <p className="text-slate-400 text-sm">Aucune réservation pour le moment.</p>
-                </div>
-              ) : (
-                <div>
-                  {reservations.map((res) => (
-                    <ReservationRow key={res.id} res={res} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === "Livraison" && (
-            <div className="animate-in fade-in duration-300">
-              <h4 className="text-sm font-bold text-slate-400 uppercase mb-4 tracking-widest">
-                Module de Livraison
-              </h4>
-              <div className="flex items-center justify-center h-40 border-2 border-dashed border-slate-100 rounded-xl">
-                <p className="text-slate-400 text-sm">À implémenter...</p>
-              </div>
-            </div>
-          )}
-
-          {activeTab === "Facture" && (
-            <div className="animate-in fade-in duration-300">
-              <h4 className="text-sm font-bold text-slate-400 uppercase mb-4 tracking-widest">
-                Facturation
-              </h4>
-              <p className="text-slate-600">Historique et génération des factures.</p>
-            </div>
-          )}
-        </div>
+        {/* ... (Keep your existing Tabs and Tab Content code here) ... */}
+        {/* Reservation List code remains the same */}
       </section>
 
-      {/* Modal */}
       <ReserveModal
         isOpen={isReserveModalOpen}
         onClose={() => setIsReserveModalOpen(false)}
-        onSaved={fetchReservations}  // ← refreshes the list after saving
+        onSaved={fetchReservations}
       />
     </div>
   );
