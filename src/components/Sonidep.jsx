@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import ReserveModal from "./ReserveModal";
 import { supabase } from "@/lib/supabase";
 
+
 // ── Metric Card ──────────────────────────────────────────────────────────────
 const MetricCard = ({ title, a, b, onClick }) => (
   <button
@@ -22,12 +23,16 @@ const MetricCard = ({ title, a, b, onClick }) => (
 );
 
 // ── Reservation Row ───────────────────────────────────────────────────────────
-const ReservationRow = ({ res }) => {
+const ReservationRow = ({ res, onClick }) => {
   const totalLitres =
     (res.litre_essence ?? 0) + (res.litre_gasoil ?? 0);
 
   return (
-    <div className="flex items-center justify-between py-3 px-4 rounded-lg hover:bg-slate-50 border border-slate-100 mb-2">
+    
+    <div 
+      onClick={onClick} 
+      className="cursor-pointer flex items-center justify-between py-3 px-4 rounded-lg hover:bg-slate-50 border border-slate-100 mb-2 transition"
+    >
       <div className="flex flex-col">
         <span className="text-sm font-semibold text-slate-800">
           {res.numero_reservation}
@@ -55,6 +60,7 @@ export default function Sonidep() {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCard, setActiveCard] = useState(null); // for the panel later
+  const [editingRes, setEditingRes] = useState(null);
 
   const tabs = ["Reserve", "Livraison", "Facture"];
 
@@ -102,6 +108,17 @@ const monthlyStats = useMemo(() => {
   fetchReservations();
 }, [fetchReservations]);
 
+const handleEdit = (res) => {
+  setEditingRes(res);
+  setIsReserveModalOpen(true);
+};
+
+// Also update the "New" button to clear selection
+const handleAddNew = () => {
+  setEditingRes(null);
+  setIsReserveModalOpen(true);
+};
+
   // Metric cards — only reserve count is real for now
   const metrics = [
     { key: "reserve",   title: "Réserve",          a: monthlyStats.totalLiters.toLocaleString("fr-FR") + " L", b: "Total ce mois" },
@@ -144,7 +161,11 @@ const monthlyStats = useMemo(() => {
       </thead>
       <tbody className="divide-y divide-slate-100">
         {monthlyStats.data.map((res) => (
-          <tr key={res.id} className="hover:bg-white/50">
+          <tr 
+            key={res.id} 
+            onClick={() => handleEdit(res)} 
+            className="hover:bg-orange-50 cursor-pointer transition-colors"
+          >
             <td className="py-3 font-semibold text-slate-700">{res.numero_reservation}</td>
             <td className="py-3 text-slate-500">
               {new Date(res.created_at).toLocaleDateString("fr-FR")}
@@ -215,7 +236,7 @@ const monthlyStats = useMemo(() => {
               ) : (
                 <div>
                   {reservations.map((res) => (
-                    <ReservationRow key={res.id} res={res} />
+                    <ReservationRow key={res.id} res={res} onClick={() => handleEdit(res)} />
                   ))}
                 </div>
               )}
@@ -246,9 +267,14 @@ const monthlyStats = useMemo(() => {
 
       {/* Modal */}
       <ReserveModal
+        key={editingRes?.id || "new"} // This is the magic line
         isOpen={isReserveModalOpen}
-        onClose={() => setIsReserveModalOpen(false)}
-        onSaved={fetchReservations}  // ← refreshes the list after saving
+        onClose={() => {
+          setIsReserveModalOpen(false);
+          setEditingRes(null);
+        }}
+        onSaved={fetchReservations}
+        editData={editingRes}
       />
     </div>
   );

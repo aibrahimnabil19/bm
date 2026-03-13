@@ -3,18 +3,39 @@
 import React, { useState } from "react";
 import { supabase } from '@/lib/supabase';
 
-export default function ReserveModal({ isOpen, onClose, onSaved}) {
+export default function ReserveModal({ isOpen, onClose, onSaved, editData }) { // Added editData
   const [formData, setFormData] = useState({
-    numeroReservation: "",
-    dateReservation: "", // Added this to state
-    type: "essence",
-    litre: "",
-    price: "",
-    litreEssence: "",
-    litreGasoil: "",
-    priceEssence: "",
-    priceGasoil: "",
+    numeroReservation: editData?.numero_reservation || "",
+    dateReservation: editData?.date_reservation || "",
+    type: editData?.type || "essence",
+    litre: editData?.type !== "essence et gasoil" ? (editData?.litre_essence || editData?.litre_gasoil || "") : "",
+    price: editData?.type !== "essence et gasoil" ? (editData?.price_essence || editData?.price_gasoil || "") : "",
+    litreEssence: editData?.litre_essence || "",
+    litreGasoil: editData?.litre_gasoil || "",
+    priceEssence: editData?.price_essence || "",
+    priceGasoil: editData?.price_gasoil || "",
   });
+
+  // Pre-fill form when editData is provided
+  // useEffect(() => {
+  //   if (editData) {
+  //     setFormData({
+  //       numeroReservation: editData.numero_reservation || "",
+  //       dateReservation: editData.date_reservation || "",
+  //       type: editData.type || "essence",
+  //       // Logic to handle single vs mixed values
+  //       litre: editData.type !== "essence et gasoil" ? (editData.litre_essence || editData.litre_gasoil || "") : "",
+  //       price: editData.type !== "essence et gasoil" ? (editData.price_essence || editData.price_gasoil || "") : "",
+  //       litreEssence: editData.litre_essence || "",
+  //       litreGasoil: editData.litre_gasoil || "",
+  //       priceEssence: editData.price_essence || "",
+  //       priceGasoil: editData.price_gasoil || "",
+  //     });
+  //   } else {
+  //     // Reset form if it's a "New" reservation
+  //     setFormData({ numeroReservation: "", dateReservation: "", type: "essence", litre: "", price: "", litreEssence: "", litreGasoil: "", priceEssence: "", priceGasoil: "" });
+  //   }
+  // }, [editData, isOpen]);
 
   if (!isOpen) return null;
 
@@ -30,30 +51,35 @@ export default function ReserveModal({ isOpen, onClose, onSaved}) {
     numero_reservation: formData.numeroReservation,
     date_reservation: formData.dateReservation,
     type: formData.type,
-    // If mixed, use the split fields; otherwise put value in the right column
-    litre_essence: formData.type === 'gasoil' ? null
-      : formData.type === 'essence et gasoil' ? Number(formData.litreEssence)
-      : Number(formData.litre),
-    litre_gasoil: formData.type === 'essence' ? null
-      : formData.type === 'essence et gasoil' ? Number(formData.litreGasoil)
-      : Number(formData.litre),
-    price_essence: formData.type === 'gasoil' ? null
-      : formData.type === 'essence et gasoil' ? Number(formData.priceEssence)
-      : Number(formData.price),
-    price_gasoil: formData.type === 'essence' ? null
-      : formData.type === 'essence et gasoil' ? Number(formData.priceGasoil)
-      : Number(formData.price),
+    litre_essence: formData.type === 'gasoil' ? null : formData.type === 'essence et gasoil' ? Number(formData.litreEssence) : Number(formData.litre),
+    litre_gasoil: formData.type === 'essence' ? null : formData.type === 'essence et gasoil' ? Number(formData.litreGasoil) : Number(formData.litre),
+    price_essence: formData.type === 'gasoil' ? null : formData.type === 'essence et gasoil' ? Number(formData.priceEssence) : Number(formData.price),
+    price_gasoil: formData.type === 'essence' ? null : formData.type === 'essence et gasoil' ? Number(formData.priceGasoil) : Number(formData.price),
   };
 
-  const { error } = await supabase.from('reservations').insert(payload);
+  let error;
+  if (editData?.id) {
+    // UPDATE existing
+    const { error: updateError } = await supabase
+      .from('reservations')
+      .update(payload)
+      .eq('id', editData.id);
+    error = updateError;
+  } else {
+    // INSERT new
+    const { error: insertError } = await supabase
+      .from('reservations')
+      .insert(payload);
+    error = insertError;
+  }
 
   if (error) {
     alert('Erreur: ' + error.message);
     return;
   }
 
-  onClose();           // close modal
-  onSaved?.();         // tell parent to refresh ← we'll use this below
+  onClose();
+  onSaved?.();
 };
 
   const isMixed = formData.type === "essence et gasoil";
