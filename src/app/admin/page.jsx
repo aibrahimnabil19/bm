@@ -1,12 +1,7 @@
-import AdminSideBar from '@/components/AdminSideBar'
-import React from 'react'
+import AdminLayout from '@/components/AdminLayout'
 
-const page = () => {
+export default function Page() {
   return (
-    <main className="min-h-screen flex">
-      <AdminSideBar />
-    </main>  
-    )
+    <AdminLayout/>
+  )
 }
-
-export default page
