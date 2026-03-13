@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import React from 'react'
 import { navItems } from '../lib/navItems'
+import { usePathname } from 'next/navigation'
 
 export default function AdminSideBar({ open = false, onClose = () => {} }) {
   return (
@@ -41,19 +42,25 @@ export default function AdminSideBar({ open = false, onClose = () => {} }) {
 
 // Sub-component to avoid repeating the menu list
 function NavLinks({ onClose }) {
+  const pathname = usePathname()
+
   return (
     <div className="flex flex-col gap-2">
-      {navItems.map((item) => (
-        <Link 
-          key={item.href} 
-          href={item.href} 
-          onClick={() => onClose?.()}
-          className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-slate-100 transition-colors"
-        >
-          <span className="w-5 text-center"><i className={item.iconClass} /></span>
-          <span>{item.label}</span>
-        </Link>
-      ))}
+      {navItems.map((item) => {
+        const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href))
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={() => onClose?.()}
+            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors
+              ${isActive ? 'bg-white shadow-sm text-slate-900' : 'hover:bg-white/40 text-slate-800'}`}
+          >
+            <span className="w-5 text-center"><i className={item.iconClass} /></span>
+            <span>{item.label}</span>
+          </Link>
+        )
+      })}
       <Link href="/logout" className="flex items-center gap-3 px-3 py-2 mt-4 text-sm font-medium text-red-600 rounded-md hover:bg-red-50">
         <i className="fa-solid fa-sign-out-alt" />
         <span>Déconnexion</span>
