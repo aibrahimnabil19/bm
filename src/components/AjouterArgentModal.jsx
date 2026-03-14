@@ -90,6 +90,14 @@ export default function AjouterArgentModal({ isOpen, onClose, onSaved, banque })
           .update({ solde: Number(selectedStation.solde) - montantNum })
           .eq("id", selectedStation.id);
         if (stError) throw new Error(stError.message);
+
+        // After deducting station solde, add:
+      await supabase.from("station_activites").insert({
+        station_id: selectedStation.id,
+        type: "depot_banque",
+        description: `Dépôt en banque: ${banque.nom}`,
+        montant: -montantNum,
+      });
       }
 
       onClose();

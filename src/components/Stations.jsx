@@ -6,79 +6,125 @@ import StationModal from "./StationModal";
 import ApprovisionnerModal from "./ApprovisionnerModal";
 
 // ── Station Card ──────────────────────────────────────────────────────────────
-const StationCard = ({ station, onEdit, onDelete, onApprovisionner }) => (
-  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4">
-    {/* Header */}
-    <div className="flex items-start justify-between">
-      <div>
-        <h3 className="text-base font-bold text-slate-800">{station.nom}</h3>
-        <p className="text-xs text-slate-400 mt-0.5">
-          <i className="fa-solid fa-location-dot mr-1" />
-          {station.ville}
-        </p>
-      </div>
-      <div className="flex gap-1">
+  const StationCard = ({ station, activites, onEdit, onDelete, onApprovisionner }) => {
+    const [showActivites, setShowActivites] = useState(false);
+    const stationActivites = activites
+      .filter((a) => a.station_id === station.id)
+      .slice(0, 10);
+
+    const TYPE_CONFIG = {
+      approvisionnement: { color: "text-orange-600 bg-orange-50", icon: "fa-solid fa-gas-pump" },
+      paiement_client:   { color: "text-green-600 bg-green-50",   icon: "fa-solid fa-hand-holding-dollar" },
+      depot_banque:      { color: "text-blue-600 bg-blue-50",     icon: "fa-solid fa-bank" },
+      depense:           { color: "text-red-600 bg-red-50",       icon: "fa-solid fa-money-bill" },
+    };
+
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-base font-bold text-slate-800">{station.nom}</h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              <i className="fa-solid fa-location-dot mr-1" />{station.ville}
+            </p>
+          </div>
+          <div className="flex gap-1">
+            <button onClick={() => onEdit(station)} className="p-2 text-slate-400 hover:text-blue-600 transition">
+              <i className="fa-solid fa-pen text-sm" />
+            </button>
+            <button onClick={() => onDelete(station.id)} className="p-2 text-slate-400 hover:text-red-600 transition">
+              <i className="fa-solid fa-trash text-sm" />
+            </button>
+          </div>
+        </div>
+
+        {/* Stock pills */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg bg-orange-50 border border-orange-100 p-3">
+            <p className="text-xs text-orange-500 font-medium uppercase tracking-wider mb-1">Essence</p>
+            <p className="text-lg font-bold text-orange-700">
+              {Number(station.stock_essence).toLocaleString("fr-FR")} <span className="text-sm font-normal">L</span>
+            </p>
+          </div>
+          <div className="rounded-lg bg-blue-50 border border-blue-100 p-3">
+            <p className="text-xs text-blue-500 font-medium uppercase tracking-wider mb-1">Gasoil</p>
+            <p className="text-lg font-bold text-blue-700">
+              {Number(station.stock_gasoil).toLocaleString("fr-FR")} <span className="text-sm font-normal">L</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Solde */}
+        <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
+          <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Solde caisse</p>
+          <p className="text-lg font-bold text-slate-800">
+            {Number(station.solde).toLocaleString("fr-FR")} <span className="text-sm font-normal">FCFA</span>
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 pt-1 border-t border-slate-100">
+          <button onClick={() => onApprovisionner(station)}
+            className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium bg-[#d27045] text-white rounded-lg hover:bg-[#b85b34] transition">
+            <i className="fa-solid fa-gas-pump" />
+            Approvisionner
+          </button>
+          <button disabled
+            className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium bg-slate-100 text-slate-400 rounded-lg cursor-not-allowed">
+            <i className="fa-solid fa-money-bill" />
+            Dépense
+          </button>
+        </div>
+
+        {/* Activities toggle */}
         <button
-          onClick={() => onEdit(station)}
-          className="p-2 text-slate-400 hover:text-blue-600 transition"
-          title="Modifier"
+          onClick={() => setShowActivites((s) => !s)}
+          className="flex items-center justify-between w-full text-xs text-slate-500 hover:text-slate-700 pt-1 border-t border-slate-100 transition"
         >
-          <i className="fa-solid fa-pen text-sm" />
+          <span className="font-medium uppercase tracking-wider">
+            Activités récentes ({stationActivites.length})
+          </span>
+          <i className={`fa-solid fa-chevron-down text-slate-400 transition-transform ${showActivites ? "rotate-180" : ""}`} />
         </button>
-        <button
-          onClick={() => onDelete(station.id)}
-          className="p-2 text-slate-400 hover:text-red-600 transition"
-          title="Supprimer"
-        >
-          <i className="fa-solid fa-trash text-sm" />
-        </button>
-      </div>
-    </div>
 
-    {/* Stock pills */}
-    <div className="grid grid-cols-2 gap-2">
-      <div className="rounded-lg bg-orange-50 border border-orange-100 p-3">
-        <p className="text-xs text-orange-500 font-medium uppercase tracking-wider mb-1">Essence</p>
-        <p className="text-lg font-bold text-orange-700">
-          {Number(station.stock_essence).toLocaleString("fr-FR")} <span className="text-sm font-normal">L</span>
-        </p>
+        {showActivites && (
+          <div className="space-y-2 animate-in fade-in duration-200">
+            {stationActivites.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-2">Aucune activité.</p>
+            ) : stationActivites.map((a) => {
+              const cfg = TYPE_CONFIG[a.type] ?? TYPE_CONFIG.depense;
+              return (
+                <div key={a.id} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${cfg.color}`}>
+                    <i className={`${cfg.icon} text-xs`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-slate-700 truncate">{a.description}</p>
+                    <p className="text-xs text-slate-400">
+                      {new Date(a.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    {a.litre && (
+                      <p className="text-xs font-bold text-orange-600">
+                        +{Number(a.litre).toLocaleString("fr-FR")} L
+                      </p>
+                    )}
+                    {a.montant != null && (
+                      <p className={`text-xs font-bold ${Number(a.montant) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {Number(a.montant) >= 0 ? "+" : ""}{Number(a.montant).toLocaleString("fr-FR")} F
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-      <div className="rounded-lg bg-blue-50 border border-blue-100 p-3">
-        <p className="text-xs text-blue-500 font-medium uppercase tracking-wider mb-1">Gasoil</p>
-        <p className="text-lg font-bold text-blue-700">
-          {Number(station.stock_gasoil).toLocaleString("fr-FR")} <span className="text-sm font-normal">L</span>
-        </p>
-      </div>
-    </div>
-
-    {/* Solde */}
-    <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
-      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Solde caisse</p>
-      <p className="text-lg font-bold text-slate-800">
-        {Number(station.solde).toLocaleString("fr-FR")} <span className="text-sm font-normal">FCFA</span>
-      </p>
-    </div>
-
-    {/* Actions */}
-    <div className="flex gap-2 pt-1 border-t border-slate-100">
-      <button
-        onClick={() => onApprovisionner(station)}
-        className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium bg-[#d27045] text-white rounded-lg hover:bg-[#b85b34] transition"
-      >
-        <i className="fa-solid fa-gas-pump" />
-        Approvisionner
-      </button>
-      <button
-        disabled
-        className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium bg-slate-100 text-slate-400 rounded-lg cursor-not-allowed"
-        title="À venir"
-      >
-        <i className="fa-solid fa-money-bill" />
-        Dépense
-      </button>
-    </div>
-  </div>
-);
+    );
+  };
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function Stations() {
@@ -92,6 +138,9 @@ export default function Stations() {
   const [editingStation, setEditingStation] = useState(null);
   const [approvStation, setApprovStation] = useState(null);
 
+  const [activites, setActivites] = useState([]);
+  const [expandedStation, setExpandedStation] = useState(null);
+
   // Password verification
   const [verifyingAction, setVerifyingAction] = useState(null);
   const [adminPassword, setAdminPassword] = useState("");
@@ -104,13 +153,13 @@ export default function Stations() {
     let isMounted = true; // Prevents memory leaks if component unmounts quickly
 
     const fetchStations = async () => {
-      const { data, error } = await supabase
-        .from("stations")
-        .select("*")
-        .order("created_at", { ascending: false });
-        
+      const [{ data: sData }, { data: aData }] = await Promise.all([
+        supabase.from("stations").select("*").order("created_at", { ascending: false }),
+        supabase.from("station_activites").select("*").order("created_at", { ascending: false }).limit(100),
+      ]);
       if (isMounted) {
-        if (!error) setStations(data ?? []);
+        if (!sData === false) setStations(sData ?? []);
+        setActivites(aData ?? []);
         setLoading(false);
       }
     };
@@ -175,6 +224,7 @@ export default function Stations() {
             <StationCard
               key={s.id}
               station={s}
+              activites={activites}
               onEdit={(data) => setVerifyingAction({ type: "edit", id: data.id, data })}
               onDelete={(id) => setVerifyingAction({ type: "delete", id })}
               onApprovisionner={(s) => setApprovStation(s)}

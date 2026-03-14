@@ -131,6 +131,13 @@ export default function PayerDetteModal({ isOpen, onClose, onSaved, client }) {
             .eq("id", l.banqueId);
           if (bErr) throw new Error(bErr.message);
 
+          await supabase.from("station_activites").insert({
+            station_id: l.stationId,
+            type: "paiement_client",
+            description: `Paiement dette client: ${client.nom}`,
+            montant: montantNum,
+          });
+
           // Record bank transaction
           const { error: txErr } = await supabase.from("transactions_banque").insert({
             banque_id: l.banqueId,

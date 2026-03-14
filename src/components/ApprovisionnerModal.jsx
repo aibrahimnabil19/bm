@@ -87,6 +87,14 @@ export default function ApprovisionnerModal({ isOpen, onClose, onSaved, station 
         .eq("id", station.id);
       if (stationError) throw new Error(stationError.message);
 
+      await supabase.from("station_activites").insert({
+        station_id: station.id,
+        type: "approvisionnement",
+        description: `Approvisionnement depuis BL ${selectedBL.numero_bon}`,
+        litre: litreNum,
+        carburant: selectedBL.type,
+      });
+
       onClose();
       onSaved?.();
     } catch (err) {
