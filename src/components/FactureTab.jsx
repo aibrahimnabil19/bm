@@ -87,6 +87,29 @@ export default function FactureTab({ livraisons, reservations, onDuChange }) {
       })
     );
 
+    // If a paid facture now has new livraisons, reset it to en_attente
+    const toReopen = (existing ?? []).filter((f) => {
+      if (f.statut !== "payee") return false;
+      const period = periods.find(
+        (p) => p.debut === f.periode_debut && p.fin === f.periode_fin
+      );
+      return period && period.livraisons.length > 0;
+    });
+
+    if (toReopen.length > 0) {
+      await Promise.all(
+        toReopen.map((f) =>
+          supabase.from("factures").update({
+            statut: "en_attente",
+            date_paiement: null,
+            montant_total: computeMontant(
+              periods.find((p) => p.debut === f.periode_debut && p.fin === f.periode_fin).livraisons
+            ),
+          }).eq("id", f.id)
+        )
+      );
+    }
+
     if (toCreate.length > 0) {
       await supabase.from("factures").insert(toCreate);
     } else {
