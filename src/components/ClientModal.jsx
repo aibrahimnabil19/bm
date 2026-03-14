@@ -43,18 +43,18 @@ export default function ClientModal({ isOpen, onClose, onSaved, editData }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
 
-        <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50">
+        <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50 shrink-0">
           <h2 className="text-lg font-bold text-slate-800">
             {editData?.id ? "Modifier le Client" : "Nouveau Client"}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
             <i className="fa-solid fa-xmark text-xl" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -63,7 +63,7 @@ export default function ClientModal({ isOpen, onClose, onSaved, editData }) {
             <input
               type="text" name="nom" value={formData.nom} onChange={handleChange} required
               placeholder="Ex: Moussa Issa"
-              className="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-[#d27045] outline-none transition"
+              className="w-full border border-slate-300 rounded-md p-3 sm:p-2 focus:ring-2 focus:ring-[#d27045] outline-none transition text-base"
             />
           </div>
 
@@ -75,7 +75,7 @@ export default function ClientModal({ isOpen, onClose, onSaved, editData }) {
             <input
               type="tel" name="numero" value={formData.numero} onChange={handleChange}
               placeholder="Ex: +227 90 00 00 00"
-              className="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-[#d27045] outline-none transition"
+              className="w-full border border-slate-300 rounded-md p-3 sm:p-2 focus:ring-2 focus:ring-[#d27045] outline-none transition text-base"
             />
           </div>
 
@@ -87,17 +87,17 @@ export default function ClientModal({ isOpen, onClose, onSaved, editData }) {
             <input
               type="number" name="dette" value={formData.dette} onChange={handleChange}
               min="0" placeholder="0"
-              className="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-[#d27045] outline-none transition"
+              className="w-full border border-slate-300 rounded-md p-3 sm:p-2 focus:ring-2 focus:ring-[#d27045] outline-none transition text-base"
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-slate-100 sticky bottom-0 bg-white">
             <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition">
+              className="order-2 sm:order-1 px-4 py-3 sm:py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition">
               Annuler
             </button>
             <button type="submit" disabled={saving}
-              className="px-4 py-2 text-sm font-medium text-white bg-[#d27045] hover:bg-[#b85b34] rounded-md transition disabled:opacity-60">
+              className="order-1 sm:order-2 px-4 py-3 sm:py-2 text-sm font-medium text-white bg-[#d27045] hover:bg-[#b85b34] rounded-md transition disabled:opacity-60">
               {saving ? "Enregistrement..." : "Enregistrer"}
             </button>
           </div>

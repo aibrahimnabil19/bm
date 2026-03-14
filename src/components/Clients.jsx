@@ -7,7 +7,7 @@ import AddDetteModal from "./AddDetteModal";
 
 // ── Client Row ────────────────────────────────────────────────────────────────
 const ClientRow = ({ client, onEdit, onDelete, onAddDette }) => (
-  <div className="flex items-center justify-between py-4 px-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
+  <div className="flex flex-col sm:flex-row sm:items-center justify-between py-4 px-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition gap-4">
     
     {/* Left: identity */}
     <div className="flex items-center gap-4">
@@ -29,10 +29,10 @@ const ClientRow = ({ client, onEdit, onDelete, onAddDette }) => (
     </div>
 
     {/* Right: dette + actions */}
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
       {/* Dette badge */}
-      <div className="text-right">
-        <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">Dette</p>
+      <div className="text-left sm:text-right pr-4 sm:pr-0">
+        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Dette</p>
         <p className={`text-sm font-bold ${Number(client.dette) > 0 ? "text-red-600" : "text-green-600"}`}>
           {Number(client.dette).toLocaleString("fr-FR")} FCFA
         </p>
@@ -61,7 +61,7 @@ const ClientRow = ({ client, onEdit, onDelete, onAddDette }) => (
       </div>
 
       {/* Edit / Delete */}
-      <div className="flex gap-1 border-l pl-3 border-slate-200">
+      <div className="flex gap-1 border-t sm:border-t-0 pt-2 sm:pt-0 sm:border-l sm:pl-3 border-slate-100 sm:border-slate-200 w-full sm:w-auto justify-end">
         <button
           onClick={() => onEdit(client)}
           className="p-2 text-slate-400 hover:text-blue-600 transition"
@@ -87,7 +87,6 @@ export default function Clients() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // 1. Refresh Trigger State
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
@@ -97,13 +96,10 @@ export default function Clients() {
   const [verifyingAction, setVerifyingAction] = useState(null);
   const [adminPassword, setAdminPassword] = useState("");
 
-  // 2. Refresh Function
   const refreshData = () => setRefreshTrigger((prev) => prev + 1);
 
-  // 3. Move fetch logic completely inside the effect
   useEffect(() => {
     let isMounted = true;
-
     const fetchClients = async () => {
       const { data, error } = await supabase
         .from("clients")
@@ -115,13 +111,9 @@ export default function Clients() {
         setLoading(false);
       }
     };
-
     fetchClients();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [refreshTrigger]); // Listen to the trigger instead of an external function
+    return () => { isMounted = false; };
+  }, [refreshTrigger]);
 
   const confirmAction = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -135,7 +127,7 @@ export default function Clients() {
 
     if (type === "delete") {
       await supabase.from("clients").delete().eq("id", id);
-      refreshData(); // Call refreshData here
+      refreshData();
     } else if (type === "edit") {
       setEditingClient(data);
       setIsClientModalOpen(true);
@@ -145,32 +137,30 @@ export default function Clients() {
     setAdminPassword("");
   };
 
-  // Filter by search
   const filtered = clients.filter((c) =>
     c.nom.toLowerCase().includes(search.toLowerCase()) ||
     (c.numero ?? "").includes(search)
   );
 
-  // Summary stats
   const totalDette = clients.reduce((acc, c) => acc + Number(c.dette), 0);
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-6 px-1 sm:px-0">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-800">Clients</h2>
           <p className="text-sm text-slate-500">
             {clients.length} client(s) —{" "}
             <span className="text-red-500 font-medium">
-              {totalDette.toLocaleString("fr-FR")} FCFA de dette totale
+              {totalDette.toLocaleString("fr-FR")} FCFA
             </span>
           </p>
         </div>
         <button
           onClick={() => { setEditingClient(null); setIsClientModalOpen(true); }}
-          className="flex items-center gap-2 px-4 py-2 bg-[#d27045] text-white text-sm font-medium rounded-lg hover:bg-[#b85b34] transition shadow-sm"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#d27045] text-white text-sm font-medium rounded-lg hover:bg-[#b85b34] transition shadow-sm w-full sm:w-auto"
         >
           <i className="fa-solid fa-plus" />
           Nouveau Client
@@ -216,8 +206,8 @@ export default function Clients() {
       {verifyingAction && (
         <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl border border-slate-200">
-            <h3 className="text-lg font-bold text-slate-800 mb-2">Confirmation Requise</h3>
-            <p className="text-sm text-slate-500 mb-4">
+            <h3 className="text-lg font-bold text-slate-800 mb-2 text-center sm:text-left">Confirmation Requise</h3>
+            <p className="text-sm text-slate-500 mb-4 text-center sm:text-left">
               Entrez votre mot de passe pour {verifyingAction.type === "delete" ? "supprimer" : "modifier"} ce client.
             </p>
             <input
@@ -228,7 +218,7 @@ export default function Clients() {
               onChange={(e) => setAdminPassword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && confirmAction()}
             />
-            <div className="flex gap-3">
+            <div className="flex flex-col-reverse sm:flex-row gap-3">
               <button
                 onClick={() => { setVerifyingAction(null); setAdminPassword(""); }}
                 className="flex-1 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg"
@@ -246,23 +236,21 @@ export default function Clients() {
         </div>
       )}
 
-      {/* Client Add/Edit Modal */}
       <ClientModal
         key={editingClient?.id ?? "new-client"}
         isOpen={isClientModalOpen}
         onClose={() => { setIsClientModalOpen(false); setEditingClient(null); }}
-        onSaved={refreshData} // Passed the trigger instead of fetchClients
+        onSaved={refreshData}
         editData={editingClient}
       />
 
-      {/* Add Dette Modal */}
       {detteClient && (
         <AddDetteModal
           key={detteClient.id}
           isOpen={!!detteClient}
           client={detteClient}
           onClose={() => setDetteClient(null)}
-          onSaved={refreshData} // Passed the trigger instead of fetchClients
+          onSaved={refreshData}
         />
       )}
     </div>
