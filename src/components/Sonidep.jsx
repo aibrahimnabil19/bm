@@ -2,22 +2,22 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import ReserveModal from "./ReserveModal";
+import LivraisonModal from "./LivraisonModal";
 import { supabase } from "@/lib/supabase";
 
-
-// ── Metric Card ──────────────────────────────────────────────────────────────
-const MetricCard = ({ title, a, b, onClick }) => (
+// ── Metric Card ───────────────────────────────────────────────────────────────
+const MetricCard = ({ title, a, b, onClick, active }) => (
   <button
     onClick={onClick}
-    className="flex-1 min-w-32 rounded-xl border border-white/20 shadow-sm p-4 flex flex-col justify-between aspect-square text-left transition hover:brightness-110 active:scale-95"
+    className={`flex-1 min-w-32 rounded-xl border shadow-sm p-4 flex flex-col justify-between aspect-square text-left transition active:scale-95 ${
+      active ? "ring-2 ring-white brightness-110" : "hover:brightness-110 border-white/20"
+    }`}
     style={{ backgroundColor: "#d27045" }}
   >
     <div className="text-sm font-medium text-white/90 truncate">{title}</div>
     <div className="flex flex-col">
       <div className="text-2xl md:text-3xl font-bold text-white">{a}</div>
-      <div className="text-[10px] md:text-xs font-medium text-white/70 uppercase tracking-wider">
-        {b}
-      </div>
+      {b && <div className="text-[10px] md:text-xs font-medium text-white/70 uppercase tracking-wider">{b}</div>}
     </div>
   </button>
 );
@@ -25,39 +25,55 @@ const MetricCard = ({ title, a, b, onClick }) => (
 // ── Reservation Row ───────────────────────────────────────────────────────────
 const ReservationRow = ({ res, onEdit, onDelete }) => {
   const totalLitres = (res.litre_essence ?? 0) + (res.litre_gasoil ?? 0);
-
   return (
     <div className="group flex items-center justify-between py-3 px-4 rounded-lg hover:bg-slate-50 border border-slate-100 mb-2 transition">
       <div className="flex flex-col">
         <span className="text-sm font-semibold text-slate-800">{res.numero_reservation}</span>
-        <span className="text-xs text-slate-400">
-          {new Date(res.date_reservation).toLocaleDateString("fr-FR")}
-        </span>
+        <span className="text-xs text-slate-400">{new Date(res.date_reservation).toLocaleDateString("fr-FR")}</span>
       </div>
-      
       <div className="flex items-center gap-4">
-        <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-medium capitalize">
-          {res.type}
-        </span>
-        <span className="text-sm font-bold text-slate-700">
-          {totalLitres.toLocaleString("fr-FR")} L
-        </span>
-        
-        {/* Action Icons - Visible on hover or mobile */}
+        <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-medium capitalize">{res.type}</span>
+        <span className="text-sm font-bold text-slate-700">{totalLitres.toLocaleString("fr-FR")} L</span>
         <div className="flex items-center gap-2 ml-2 border-l pl-4 border-slate-200">
-          <button 
-            onClick={() => onEdit(res)}
-            className="p-2 text-slate-400 hover:text-blue-600 transition"
-            title="Modifier"
-          >
-            <i className="fa-solid fa-pen text-sm"></i>
+          <button onClick={() => onEdit(res)} className="p-2 text-slate-400 hover:text-blue-600 transition" title="Modifier">
+            <i className="fa-solid fa-pen text-sm" />
           </button>
-          <button 
-            onClick={() => onDelete(res.id)}
-            className="p-2 text-slate-400 hover:text-red-600 transition"
-            title="Supprimer"
-          >
-            <i className="fa-solid fa-trash text-sm"></i>
+          <button onClick={() => onDelete(res.id)} className="p-2 text-slate-400 hover:text-red-600 transition" title="Supprimer">
+            <i className="fa-solid fa-trash text-sm" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Livraison Row ─────────────────────────────────────────────────────────────
+const LivraisonRow = ({ liv, reservations, onEdit, onDelete }) => {
+  const linkedRes = reservations.find((r) => r.id === liv.reservation_id);
+  return (
+    <div className="group flex items-center justify-between py-3 px-4 rounded-lg hover:bg-slate-50 border border-slate-100 mb-2 transition">
+      <div className="flex flex-col">
+        <span className="text-sm font-semibold text-slate-800">{liv.numero_bon}</span>
+        <span className="text-xs text-slate-400">{new Date(liv.date_livraison).toLocaleDateString("fr-FR")}</span>
+        {linkedRes && (
+          <span className="text-xs text-slate-400 mt-0.5">→ {linkedRes.numero_reservation}</span>
+        )}
+      </div>
+      <div className="flex items-center gap-4">
+        <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 font-medium capitalize">{liv.type}</span>
+        <span className="text-sm font-bold text-slate-700">{Number(liv.litre).toLocaleString("fr-FR")} L</span>
+        {liv.bon_image_url && (
+          <a href={liv.bon_image_url} target="_blank" rel="noopener noreferrer"
+            className="p-2 text-slate-400 hover:text-[#d27045] transition" title="Voir bon">
+            <i className="fa-solid fa-image text-sm" />
+          </a>
+        )}
+        <div className="flex items-center gap-2 ml-2 border-l pl-4 border-slate-200">
+          <button onClick={() => onEdit(liv)} className="p-2 text-slate-400 hover:text-blue-600 transition">
+            <i className="fa-solid fa-pen text-sm" />
+          </button>
+          <button onClick={() => onDelete(liv.id)} className="p-2 text-slate-400 hover:text-red-600 transition">
+            <i className="fa-solid fa-trash text-sm" />
           </button>
         </div>
       </div>
@@ -68,122 +84,108 @@ const ReservationRow = ({ res, onEdit, onDelete }) => {
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function Sonidep() {
   const [activeTab, setActiveTab] = useState("Reserve");
-  const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
+  const [activeCard, setActiveCard] = useState(null);
+
+  // Data
   const [reservations, setReservations] = useState([]);
+  const [livraisons, setLivraisons] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeCard, setActiveCard] = useState(null); // for the panel later
+
+  // Modals
+  const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
   const [editingRes, setEditingRes] = useState(null);
-  const [verifyingAction, setVerifyingAction] = useState(null); // { type: 'edit' | 'delete', id: string, data?: any }
+  const [isLivraisonModalOpen, setIsLivraisonModalOpen] = useState(false);
+  const [editingLiv, setEditingLiv] = useState(null);
+
+  // Password verification
+  const [verifyingAction, setVerifyingAction] = useState(null);
   const [adminPassword, setAdminPassword] = useState("");
 
   const tabs = ["Reserve", "Livraison", "Facture"];
+  
 
-  // Fetch reservations from Supabase
- const fetchReservations = React.useCallback(async () => {
-  // We no longer need setLoading(true) here because it's true by default
-  try {
-    const { data, error } = await supabase
-      .from("reservations")
-      .select("*")
-      .order("date_reservation", { ascending: false });
-
-    if (!error) setReservations(data ?? []);
-  } catch (err) {
-    console.error("Fetch error:", err);
-  } finally {
-    setLoading(false); // Only update state when the async work is DONE
-  }
-}, []);
-
-const monthlyStats = useMemo(() => {
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-
-  // Filter reservations for the current month
-  const filtered = reservations.filter((res) => {
-    const d = new Date(res.date_reservation);
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  });
-
-  // Sum total liters (Essence + Gasoil)
-  const totalLiters = filtered.reduce((acc, res) => 
-    acc + (res.litre_essence ?? 0) + (res.litre_gasoil ?? 0), 0
-  );
-
-  return { 
-    totalLiters, 
-    count: filtered.length, 
-    data: filtered 
-  };
-}, [reservations]);
-
-// Calculate total liters regardless of the month
-  const totalAllTimeLiters = useMemo(() => {
-    return reservations.reduce((acc, res) => 
-      acc + (res.litre_essence ?? 0) + (res.litre_gasoil ?? 0), 0
-    );
-  }, [reservations]);
-
-  useEffect(() => {
-  fetchReservations();
-}, [fetchReservations]);
-
-const handleEdit = (res) => {
-  setEditingRes(res);
-  setIsReserveModalOpen(true);
-};
-
-// Also update the "New" button to clear selection
-const handleAddNew = () => {
-  setEditingRes(null);
-  setIsReserveModalOpen(true);
-};
-
-const confirmAction = async () => {
-    // For this example, we'll verify against the user's current session password
-    // In a real production app, you'd use supabase.auth.rpc or a specific verification check
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    // Quick Re-auth check
-    const { error } = await supabase.auth.signInWithPassword({
-      email: user.email,
-      password: adminPassword,
-    });
-
-    if (error) {
-      alert("Mot de passe incorrect. Action refusée.");
-      return;
+  // ── Fetchers ────────────────────────────────────────────────────────────────
+  const fetchAll = React.useCallback(async () => {
+    // Remove setLoading(true) from here to avoid the sync trigger
+    try {
+      const [{ data: resData }, { data: livData }] = await Promise.all([
+        supabase.from("reservations").select("*").order("date_reservation", { ascending: false }),
+        supabase.from("livraisons").select("*").order("date_livraison", { ascending: false }),
+      ]);
+      setReservations(resData ?? []);
+      setLivraisons(livData ?? []);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
     }
+  }, []);
 
-    // If password is correct, execute the pending action
-    if (verifyingAction.type === 'delete') {
-      const { error: delError } = await supabase.from('reservations').delete().eq('id', verifyingAction.id);
-      if (!delError) fetchReservations();
-    } else if (verifyingAction.type === 'edit') {
-      setEditingRes(verifyingAction.data);
+  // 2. Use an empty dependency array if you only want this to run once on mount,
+  // or keep [fetchAll] since useCallback now stabilizes it.
+  useEffect(() => { 
+    fetchAll(); 
+  }, [fetchAll]);
+
+  // ── Computed stats ──────────────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    const now = new Date();
+    const m = now.getMonth();
+    const y = now.getFullYear();
+
+    const totalReserved = reservations.reduce(
+      (acc, r) => acc + (r.litre_essence ?? 0) + (r.litre_gasoil ?? 0), 0
+    );
+
+    const totalDelivered = livraisons.reduce((acc, l) => acc + Number(l.litre), 0);
+
+    const thisMonthLivraisons = livraisons.filter((l) => {
+      const d = new Date(l.date_livraison);
+      return d.getMonth() === m && d.getFullYear() === y;
+    });
+    const thisMonthLitres = thisMonthLivraisons.reduce((acc, l) => acc + Number(l.litre), 0);
+
+    const restante = Math.max(0, totalReserved - totalDelivered);
+
+    return { totalReserved, totalDelivered, thisMonthLitres, restante, thisMonthLivraisons };
+  }, [reservations, livraisons]);
+
+  // ── Verify + confirm actions ────────────────────────────────────────────────
+  const confirmAction = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.auth.signInWithPassword({ email: user.email, password: adminPassword });
+    if (error) { alert("Mot de passe incorrect. Action refusée."); return; }
+
+    const { type, id, data } = verifyingAction;
+
+    if (type === "delete-res") {
+      const { error: e } = await supabase.from("reservations").delete().eq("id", id);
+      if (!e) fetchAll();
+    } else if (type === "edit-res") {
+      setEditingRes(data);
       setIsReserveModalOpen(true);
+    } else if (type === "delete-liv") {
+      const { error: e } = await supabase.from("livraisons").delete().eq("id", id);
+      if (!e) fetchAll();
+    } else if (type === "edit-liv") {
+      setEditingLiv(data);
+      setIsLivraisonModalOpen(true);
     }
 
     setVerifyingAction(null);
     setAdminPassword("");
   };
 
-  // Metric cards — only reserve count is real for now
+  // ── Metric cards ─────────────────────────────────────────────────────────────
   const metrics = [
-    { 
-      key: "reserve",   
-      title: "Réserve",          
-      a: totalAllTimeLiters.toLocaleString("fr-FR") + " L", // Changed this
-      b: "Total disponible" // Changed the subtitle text
-    },
-    { key: "livraison", title: "Livraison Totale",  a: 0,                   b: "ce mois" },
-    { key: "restant",   title: "Livraison Restante",a: 0,                   b: "ce mois" },
-    { key: "du",        title: "Dû à Sonidep",      a: 0,                   b: "FCFA" },
+    { key: "reserve",   title: "Réserve Totale",       a: stats.totalReserved.toLocaleString("fr-FR") + " L" },
+    { key: "livraison", title: "Livraison Totale",      a: stats.thisMonthLitres.toLocaleString("fr-FR") + " L", b: "ce mois" },
+    { key: "restante",  title: "Livraison Restante",    a: stats.restante.toLocaleString("fr-FR") + " L" },
+    { key: "du",        title: "Dû à Sonidep",          a: "0", b: "FCFA" },
   ];
 
   return (
-    <div className="w-full space-y-10 relative">
+    <div className="w-full space-y-6 relative">
 
       {/* Metric Cards */}
       <div className="flex flex-row flex-nowrap gap-4 w-full overflow-x-auto pb-2 scrollbar-hide">
@@ -193,85 +195,162 @@ const confirmAction = async () => {
             title={m.title}
             a={m.a}
             b={m.b}
+            active={activeCard === m.key}
             onClick={() => setActiveCard(activeCard === m.key ? null : m.key)}
           />
         ))}
       </div>
 
-      {/* Verification Modal */}
-      {verifyingAction && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl border border-slate-200">
-            <h3 className="text-lg font-bold text-slate-800 mb-2">Confirmation Requise</h3>
-            <p className="text-sm text-slate-500 mb-4">
-              Veuillez entrer votre mot de passe administrateur pour {verifyingAction.type === 'delete' ? 'supprimer' : 'modifier'} cette donnée.
-            </p>
-            <input 
-              type="password"
-              className="w-full border rounded-lg p-3 mb-4 outline-none focus:ring-2 focus:ring-[#d27045]"
-              placeholder="Mot de passe"
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
-              autoFocus
-            />
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setVerifyingAction(null)}
-                className="flex-1 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg"
-              >
-                Annuler
-              </button>
-              <button 
-                onClick={confirmAction}
-                className="flex-1 py-2 bg-slate-800 text-white font-medium rounded-lg hover:bg-black"
-              >
-                Confirmer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── Card Detail Panels ────────────────────────────────────────────── */}
 
-      {/* Card Panel (placeholder — you'll build each one later) */}
       {activeCard === "reserve" && (
-        <div className="mt-4 overflow-x-auto">
-          <div className="mb-4 flex gap-4 text-xs font-bold text-slate-500 uppercase">
-            <span>Total Réservations: {monthlyStats.count}</span>
+        <div className="rounded-xl border border-slate-200 bg-white p-6 animate-in fade-in duration-200 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="font-bold text-slate-700">Détail des Réservations</h4>
+            <button onClick={() => setActiveCard(null)} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
           </div>
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-slate-400">
-                <th className="pb-2 font-medium">N° Réservation</th>
-                <th className="pb-2 font-medium">Créé le</th>
-                <th className="pb-2 font-medium text-right">Essence (L)</th>
-                <th className="pb-2 font-medium text-right">Gasoil (L)</th>
-                <th className="pb-2 font-medium text-right">Prix Essence</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {monthlyStats.data.map((res) => (
-                <tr 
-                  key={res.id} 
-                  onClick={() => handleEdit(res)} 
-                  className="hover:bg-orange-50 cursor-pointer transition-colors"
-                >
-                  <td className="py-3 font-semibold text-slate-700">{res.numero_reservation}</td>
-                  <td className="py-3 text-slate-500">
-                    {new Date(res.created_at).toLocaleDateString("fr-FR")}
-                  </td>
-                  <td className="py-3 text-right text-orange-600 font-medium">{res.litre_essence ?? 0}</td>
-                  <td className="py-3 text-right text-blue-600 font-medium">{res.litre_gasoil ?? 0}</td>
-                  <td className="py-3 text-right text-slate-700">
-                    {res.price_essence ? `${res.price_essence.toLocaleString()} F` : "-"}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="border-b border-slate-100 text-slate-400 text-xs uppercase">
+                  <th className="pb-2 font-medium">N° Réservation</th>
+                  <th className="pb-2 font-medium">Date</th>
+                  <th className="pb-2 font-medium">Type</th>
+                  <th className="pb-2 font-medium text-right">Essence (L)</th>
+                  <th className="pb-2 font-medium text-right">Gasoil (L)</th>
+                  <th className="pb-2 font-medium text-right">Total (L)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {reservations.map((r) => (
+                  <tr key={r.id} className="hover:bg-slate-50">
+                    <td className="py-2 font-semibold text-slate-700">{r.numero_reservation}</td>
+                    <td className="py-2 text-slate-500">{new Date(r.date_reservation).toLocaleDateString("fr-FR")}</td>
+                    <td className="py-2 capitalize text-slate-500">{r.type}</td>
+                    <td className="py-2 text-right text-orange-600">{r.litre_essence ?? "—"}</td>
+                    <td className="py-2 text-right text-blue-600">{r.litre_gasoil ?? "—"}</td>
+                    <td className="py-2 text-right font-bold text-slate-700">
+                      {((r.litre_essence ?? 0) + (r.litre_gasoil ?? 0)).toLocaleString("fr-FR")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-slate-200">
+                  <td colSpan={5} className="pt-2 text-sm font-bold text-slate-600">Total général</td>
+                  <td className="pt-2 text-right font-bold text-[#d27045]">
+                    {stats.totalReserved.toLocaleString("fr-FR")} L
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </tfoot>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* Gestion Sonidep */}
+      {activeCard === "livraison" && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 animate-in fade-in duration-200 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h4 className="font-bold text-slate-700">Livraisons — Ce mois</h4>
+              <p className="text-xs text-slate-400">{stats.thisMonthLivraisons.length} livraison(s) — {stats.thisMonthLitres.toLocaleString("fr-FR")} L total</p>
+            </div>
+            <button onClick={() => setActiveCard(null)} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
+          </div>
+          {stats.thisMonthLivraisons.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-6">Aucune livraison ce mois-ci.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 text-xs uppercase">
+                    <th className="pb-2 font-medium">N° Bon</th>
+                    <th className="pb-2 font-medium">Date</th>
+                    <th className="pb-2 font-medium">Type</th>
+                    <th className="pb-2 font-medium text-right">Litres</th>
+                    <th className="pb-2 font-medium text-right">Prix/L</th>
+                    <th className="pb-2 font-medium text-right">Total</th>
+                    <th className="pb-2 font-medium text-center">Bon</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {stats.thisMonthLivraisons.map((l) => (
+                    <tr key={l.id} className="hover:bg-slate-50">
+                      <td className="py-2 font-semibold text-slate-700">{l.numero_bon}</td>
+                      <td className="py-2 text-slate-500">{new Date(l.date_livraison).toLocaleDateString("fr-FR")}</td>
+                      <td className="py-2 capitalize text-slate-500">{l.type}</td>
+                      <td className="py-2 text-right font-medium text-blue-600">{Number(l.litre).toLocaleString("fr-FR")}</td>
+                      <td className="py-2 text-right text-slate-500">{Number(l.prix).toLocaleString("fr-FR")}</td>
+                      <td className="py-2 text-right font-bold text-slate-700">
+                        {(Number(l.litre) * Number(l.prix)).toLocaleString("fr-FR")} F
+                      </td>
+                      <td className="py-2 text-center">
+                        {l.bon_image_url
+                          ? <a href={l.bon_image_url} target="_blank" rel="noopener noreferrer" className="text-[#d27045] hover:underline text-xs">Voir</a>
+                          : <span className="text-slate-300 text-xs">—</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-200">
+                    <td colSpan={5} className="pt-2 text-sm font-bold text-slate-600">Total ce mois</td>
+                    <td className="pt-2 text-right font-bold text-[#d27045]">
+                      {stats.thisMonthLivraisons.reduce((a, l) => a + Number(l.litre) * Number(l.prix), 0).toLocaleString("fr-FR")} F
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeCard === "restante" && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 animate-in fade-in duration-200 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h4 className="font-bold text-slate-700">Livraison Restante par Réservation</h4>
+              <p className="text-xs text-slate-400">Réservé — Livré = Restant</p>
+            </div>
+            <button onClick={() => setActiveCard(null)} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
+          </div>
+          <div className="space-y-3">
+            {reservations.map((r) => {
+              const totalRes = (r.litre_essence ?? 0) + (r.litre_gasoil ?? 0);
+              const delivered = livraisons
+                .filter((l) => l.reservation_id === r.id)
+                .reduce((a, l) => a + Number(l.litre), 0);
+              const remaining = Math.max(0, totalRes - delivered);
+              const pct = totalRes > 0 ? Math.round((delivered / totalRes) * 100) : 0;
+
+              return (
+                <div key={r.id} className="p-3 rounded-lg border border-slate-100 bg-slate-50">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-semibold text-slate-700">{r.numero_reservation}</span>
+                    <span className="text-xs text-slate-500">
+                      {delivered.toLocaleString("fr-FR")} / {totalRes.toLocaleString("fr-FR")} L
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2">
+                    <div
+                      className="bg-[#d27045] h-2 rounded-full transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-1 text-xs text-slate-400">
+                    <span>{pct}% livré</span>
+                    <span className="font-medium text-slate-600">{remaining.toLocaleString("fr-FR")} L restant</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Gestion Sonidep Section ──────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-4 md:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div>
@@ -280,42 +359,34 @@ const confirmAction = async () => {
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="flex p-2 gap-1 bg-slate-100/50">
           {tabs.map((t) => (
-            <button
-              key={t}
-              onClick={() => setActiveTab(t)}
+            <button key={t} onClick={() => setActiveTab(t)}
               className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
                 activeTab === t
                   ? "bg-white text-[#d27045] shadow-sm ring-1 ring-slate-200"
                   : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
-              }`}
-            >
+              }`}>
               {t}
             </button>
           ))}
         </div>
 
-        {/* Tab Content */}
-        <div className="p-6 min-h-75">
+        <div className="p-6 min-h-64">
 
+          {/* ── RESERVE TAB ── */}
           {activeTab === "Reserve" && (
             <div className="animate-in fade-in duration-300 flex flex-col">
               <div className="w-full flex justify-between items-center mb-6">
-                <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-                  État de la Réserve
-                </h4>
+                <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">État de la Réserve</h4>
                 <button
-                  onClick={() => setIsReserveModalOpen(true)}
+                  onClick={() => { setEditingRes(null); setIsReserveModalOpen(true); }}
                   className="flex items-center gap-2 px-4 py-2 bg-[#d27045] text-white text-sm font-medium rounded-md hover:bg-[#b85b34] transition shadow-sm"
                 >
                   <i className="fa-solid fa-plus" />
                   Nouvelle Réservation
                 </button>
               </div>
-
-              {/* Reservation List */}
               {loading ? (
                 <p className="text-sm text-slate-400">Chargement...</p>
               ) : reservations.length === 0 ? (
@@ -323,52 +394,101 @@ const confirmAction = async () => {
                   <p className="text-slate-400 text-sm">Aucune réservation pour le moment.</p>
                 </div>
               ) : (
-                <div>
-                  {reservations.map((res) => (
-                    <ReservationRow 
-                      key={res.id} 
-                      res={res} 
-                      onEdit={(data) => setVerifyingAction({ type: 'edit', id: data.id, data })}
-                      onDelete={(id) => setVerifyingAction({ type: 'delete', id })}
-                    />
-                  ))}
-                </div>
+                reservations.map((res) => (
+                  <ReservationRow key={res.id} res={res}
+                    onEdit={(data) => setVerifyingAction({ type: "edit-res", id: data.id, data })}
+                    onDelete={(id) => setVerifyingAction({ type: "delete-res", id })}
+                  />
+                ))
               )}
             </div>
           )}
 
+          {/* ── LIVRAISON TAB ── */}
           {activeTab === "Livraison" && (
-            <div className="animate-in fade-in duration-300">
-              <h4 className="text-sm font-bold text-slate-400 uppercase mb-4 tracking-widest">
-                Module de Livraison
-              </h4>
-              <div className="flex items-center justify-center h-40 border-2 border-dashed border-slate-100 rounded-xl">
-                <p className="text-slate-400 text-sm">À implémenter...</p>
+            <div className="animate-in fade-in duration-300 flex flex-col">
+              <div className="w-full flex justify-between items-center mb-6">
+                <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Module de Livraison</h4>
+                <button
+                  onClick={() => { setEditingLiv(null); setIsLivraisonModalOpen(true); }}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#d27045] text-white text-sm font-medium rounded-md hover:bg-[#b85b34] transition shadow-sm"
+                >
+                  <i className="fa-solid fa-plus" />
+                  Nouvelle Livraison
+                </button>
               </div>
+              {loading ? (
+                <p className="text-sm text-slate-400">Chargement...</p>
+              ) : livraisons.length === 0 ? (
+                <div className="flex items-center justify-center h-40 border-2 border-dashed border-slate-100 rounded-xl">
+                  <p className="text-slate-400 text-sm">Aucune livraison pour le moment.</p>
+                </div>
+              ) : (
+                livraisons.map((liv) => (
+                  <LivraisonRow key={liv.id} liv={liv} reservations={reservations}
+                    onEdit={(data) => setVerifyingAction({ type: "edit-liv", id: data.id, data })}
+                    onDelete={(id) => setVerifyingAction({ type: "delete-liv", id })}
+                  />
+                ))
+              )}
             </div>
           )}
 
           {activeTab === "Facture" && (
             <div className="animate-in fade-in duration-300">
-              <h4 className="text-sm font-bold text-slate-400 uppercase mb-4 tracking-widest">
-                Facturation
-              </h4>
+              <h4 className="text-sm font-bold text-slate-400 uppercase mb-4 tracking-widest">Facturation</h4>
               <p className="text-slate-600">Historique et génération des factures.</p>
             </div>
           )}
         </div>
       </section>
 
-      {/* Modal */}
+      {/* ── Password Verification Modal ───────────────────────────────────── */}
+      {verifyingAction && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-800 mb-2">Confirmation Requise</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              Entrez votre mot de passe pour {verifyingAction.type.includes("delete") ? "supprimer" : "modifier"} cette donnée.
+            </p>
+            <input
+              type="password"
+              autoFocus
+              className="w-full border rounded-lg p-3 mb-4 outline-none focus:ring-2 focus:ring-[#d27045]"
+              placeholder="Mot de passe"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && confirmAction()}
+            />
+            <div className="flex gap-3">
+              <button onClick={() => { setVerifyingAction(null); setAdminPassword(""); }}
+                className="flex-1 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg">
+                Annuler
+              </button>
+              <button onClick={confirmAction}
+                className="flex-1 py-2 bg-slate-800 text-white font-medium rounded-lg hover:bg-black">
+                Confirmer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modals ────────────────────────────────────────────────────────── */}
       <ReserveModal
-        key={editingRes?.id || "new"} // This is the magic line
+        key={editingRes?.id ?? "new-res"}
         isOpen={isReserveModalOpen}
-        onClose={() => {
-          setIsReserveModalOpen(false);
-          setEditingRes(null);
-        }}
-        onSaved={fetchReservations}
+        onClose={() => { setIsReserveModalOpen(false); setEditingRes(null); }}
+        onSaved={fetchAll}
         editData={editingRes}
+      />
+
+      <LivraisonModal
+        key={editingLiv?.id ?? "new-liv"}
+        isOpen={isLivraisonModalOpen}
+        onClose={() => { setIsLivraisonModalOpen(false); setEditingLiv(null); }}
+        onSaved={fetchAll}
+        editData={editingLiv}
       />
     </div>
   );
