@@ -97,6 +97,25 @@ export default function FactureTab({ livraisons, reservations, onDuChange }) {
     });
 
     if (toReopen.length > 0) {
+      const reopenResults = await Promise.all(
+        toReopen.map((f) => {
+          const period = periods.find(
+            (p) => p.debut === f.periode_debut && p.fin === f.periode_fin
+          );
+          return supabase.from("factures").update({
+            statut: "en_attente",
+            date_paiement: null,
+            montant_total: computeMontant(period.livraisons),
+          }).eq("id", f.id);
+        })
+      );
+      // Log any errors so we can see if updates are silently failing
+      reopenResults.forEach(({ error }, i) => {
+        if (error) console.error(`Failed to reopen facture ${toReopen[i].id}:`, error);
+      });
+    }
+
+    if (toReopen.length > 0) {
       await Promise.all(
         toReopen.map((f) =>
           supabase.from("factures").update({
