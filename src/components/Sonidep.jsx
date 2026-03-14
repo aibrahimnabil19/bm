@@ -139,26 +139,33 @@ export default function Sonidep() {
   // ── Computed stats ──────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const now = new Date();
-    const m = now.getMonth();
-    const y = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
 
+    // 1. Total across all time
     const totalReserved = reservations.reduce(
       (acc, r) => acc + (r.litre_essence ?? 0) + (r.litre_gasoil ?? 0), 0
     );
 
-    // This is the total volume you have collected/delivered
     const totalDelivered = livraisons.reduce((acc, l) => acc + Number(l.litre), 0);
 
+    // 2. Current balance at Sonidep
+    const remainingReserve = Math.max(0, totalReserved - totalDelivered);
+
+    // 3. Logic for "This Month" (The missing part)
     const thisMonthLivraisons = livraisons.filter((l) => {
       const d = new Date(l.date_livraison);
-      return d.getMonth() === m && d.getFullYear() === y;
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     });
 
-    const thisMonthLitres = thisMonthLivraisons.reduce((acc, l) => acc + Number(l.litre), 0);
+    const thisMonthLitres = thisMonthLivraisons.reduce(
+      (acc, l) => acc + Number(l.litre), 0
+    );
 
     return { 
       totalReserved, 
-      totalDelivered, // Use this for the total collected
+      remainingReserve, 
+      totalDelivered, 
       thisMonthLitres, 
       thisMonthLivraisons 
     };
@@ -191,17 +198,29 @@ export default function Sonidep() {
   };
 
   // ── Metric cards ─────────────────────────────────────────────────────────────
-const metrics = [
-  { key: "reserve", title: "Réserve Totale", a: stats.totalReserved.toLocaleString("fr-FR") + " L" },
-  { key: "livraison", title: "Livraison Totale", a: stats.thisMonthLitres.toLocaleString("fr-FR") + " L", b: "ce mois" },
-  { 
-    key: "restante", 
-    title: "Livraison Collectée", // Updated Title
-    a: stats.totalDelivered.toLocaleString("fr-FR") + " L", // Updated to show total collected
-    b: "Total récupéré" 
-  },
-  { key: "du", title: "Dû à Sonidep", a: "0", b: "FCFA" },
-];
+  const metrics = [
+    { 
+      key: "reserve", 
+      title: "Réserve à la Sonidep", 
+      a: stats.remainingReserve.toLocaleString("fr-FR") + " L", // Shows 4000L
+      b: "Solde actuel" 
+    },
+    { 
+      key: "livraison", 
+      title: "Enlèvements", 
+      a: stats.totalDelivered.toLocaleString("fr-FR") + " L", // Shows 2000L
+      b: "Total collecté" 
+    },
+    { 
+      key: "restante", 
+      title: "Livraison Restante", 
+      // Note: To get your 1500L, you'll need a "Distribution" field in your DB.
+      // For now, this shows the total you have in hand to distribute.
+      a: stats.totalDelivered.toLocaleString("fr-FR") + " L", 
+      b: "En attente de déchargement" 
+    },
+    { key: "du", title: "Dû à Sonidep", a: "0", b: "FCFA" },
+  ];
 
   return (
     <div className="w-full space-y-6 relative">
@@ -338,39 +357,31 @@ const metrics = [
       )}
 
       {activeCard === "restante" && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 animate-in fade-in duration-200 shadow-sm">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h4 className="font-bold text-slate-700">Volume Total Collecté</h4>
-              <p className="text-xs text-slate-400">Progression des enlèvements par réservation</p>
-            </div>
-            <button onClick={() => setActiveCard(null)} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
-          </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-6 ...">
+          {/* ... Header ... */}
           <div className="space-y-3">
             {reservations.map((r) => {
               const totalRes = (r.litre_essence ?? 0) + (r.litre_gasoil ?? 0);
               const delivered = livraisons
                 .filter((l) => l.reservation_id === r.id)
                 .reduce((a, l) => a + Number(l.litre), 0);
+              
+              // FIX: Calculate what is still left to take FROM this specific reservation
+              const leftToCollect = Math.max(0, totalRes - delivered);
               const pct = totalRes > 0 ? Math.round((delivered / totalRes) * 100) : 0;
 
               return (
-                <div key={r.id} className="p-3 rounded-lg border border-slate-100 bg-slate-50">
+                <div key={r.id} className="...">
                   <div className="flex justify-between items-center mb-1">
                     <span className="text-sm font-semibold text-slate-700">{r.numero_reservation}</span>
                     <span className="text-xs text-slate-500">
-                      {delivered.toLocaleString("fr-FR")} L récupérés
+                      {leftToCollect.toLocaleString("fr-FR")} L à collecter {/* Changed label */}
                     </span>
                   </div>
-                  <div className="w-full bg-slate-200 rounded-full h-2">
-                    <div
-                      className="bg-[#d27045] h-2 rounded-full transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
+                  {/* ... Progress bar ... */}
                   <div className="flex justify-between mt-1 text-xs text-slate-400">
-                    <span>{pct}% du quota utilisé</span>
-                    <span className="font-medium text-slate-600">{totalRes.toLocaleString("fr-FR")} L au total</span>
+                    <span>{pct}% collecté</span> {/* Changed label */}
+                    <span className="font-medium text-slate-600">Total: {totalRes.toLocaleString("fr-FR")} L</span>
                   </div>
                 </div>
               );
