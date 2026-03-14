@@ -21,25 +21,28 @@ export default function FactureTab({ livraisons, reservations, onDuChange }) {
     onDuChangeRef.current = onDuChange;
   }, [onDuChange]);
 
-  const processFactures = useCallback((dbFactures, periods) => {
-    const enriched = dbFactures
-      .map((f) => {
-        const period = periods.find(
-          (p) => p.debut === f.periode_debut && p.fin === f.periode_fin
-        );
-        return { ...f, livraisons: period?.livraisons ?? [] };
-      })
-      .filter((f) => !shouldHideFacture(f));
+    const processFactures = useCallback((dbFactures, periods) => {
+        const enriched = dbFactures
+        .map((f) => {
+            const period = periods.find(
+            (p) => p.debut === f.periode_debut && p.fin === f.periode_fin
+            );
+            return { ...f, livraisons: period?.livraisons ?? [] };
+        })
+        // 1. NEW: Filter out any facture that has 0 bons
+        .filter((f) => f.livraisons.length > 0) 
+        // 2. Keep your existing hide logic
+        .filter((f) => !shouldHideFacture(f));
 
-    setFactures(enriched);
+        setFactures(enriched);
 
-    const totalDu = enriched
-      .filter((f) => f.statut === "en_attente")
-      .reduce((acc, f) => acc + Number(f.montant_total), 0);
-    
-    // Use the ref here so this function doesn't depend on 'onDuChange'
-    onDuChangeRef.current?.(totalDu);
-  }, []); // Dependencies empty because we use the Ref and SetState
+        const totalDu = enriched
+        .filter((f) => f.statut === "en_attente")
+        .reduce((acc, f) => acc + Number(f.montant_total), 0);
+        
+        // Use the ref here so this function doesn't depend on 'onDuChange'
+        onDuChangeRef.current?.(totalDu);
+    }, []); // Dependencies empty because we use the Ref and SetState
 
   const syncFactures = useCallback(async () => {
     // 3. Only set syncing to true if it isn't already (prevents redundant updates)
