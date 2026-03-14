@@ -23,24 +23,18 @@ const MetricCard = ({ title, a, b, onClick }) => (
 );
 
 // ── Reservation Row ───────────────────────────────────────────────────────────
-const ReservationRow = ({ res, onClick }) => {
-  const totalLitres =
-    (res.litre_essence ?? 0) + (res.litre_gasoil ?? 0);
+const ReservationRow = ({ res, onEdit, onDelete }) => {
+  const totalLitres = (res.litre_essence ?? 0) + (res.litre_gasoil ?? 0);
 
   return (
-    
-    <div 
-      onClick={onClick} 
-      className="cursor-pointer flex items-center justify-between py-3 px-4 rounded-lg hover:bg-slate-50 border border-slate-100 mb-2 transition"
-    >
+    <div className="group flex items-center justify-between py-3 px-4 rounded-lg hover:bg-slate-50 border border-slate-100 mb-2 transition">
       <div className="flex flex-col">
-        <span className="text-sm font-semibold text-slate-800">
-          {res.numero_reservation}
-        </span>
+        <span className="text-sm font-semibold text-slate-800">{res.numero_reservation}</span>
         <span className="text-xs text-slate-400">
           {new Date(res.date_reservation).toLocaleDateString("fr-FR")}
         </span>
       </div>
+      
       <div className="flex items-center gap-4">
         <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-medium capitalize">
           {res.type}
@@ -48,6 +42,24 @@ const ReservationRow = ({ res, onClick }) => {
         <span className="text-sm font-bold text-slate-700">
           {totalLitres.toLocaleString("fr-FR")} L
         </span>
+        
+        {/* Action Icons - Visible on hover or mobile */}
+        <div className="flex items-center gap-2 ml-2 border-l pl-4 border-slate-200">
+          <button 
+            onClick={() => onEdit(res)}
+            className="p-2 text-slate-400 hover:text-blue-600 transition"
+            title="Modifier"
+          >
+            <i className="fa-solid fa-pen text-sm"></i>
+          </button>
+          <button 
+            onClick={() => onDelete(res.id)}
+            className="p-2 text-slate-400 hover:text-red-600 transition"
+            title="Supprimer"
+          >
+            <i className="fa-solid fa-trash text-sm"></i>
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -61,6 +73,8 @@ export default function Sonidep() {
   const [loading, setLoading] = useState(true);
   const [activeCard, setActiveCard] = useState(null); // for the panel later
   const [editingRes, setEditingRes] = useState(null);
+  const [verifyingAction, setVerifyingAction] = useState(null); // { type: 'edit' | 'delete', id: string, data?: any }
+  const [adminPassword, setAdminPassword] = useState("");
 
   const tabs = ["Reserve", "Livraison", "Facture"];
 
@@ -119,6 +133,35 @@ const handleAddNew = () => {
   setIsReserveModalOpen(true);
 };
 
+const confirmAction = async () => {
+    // For this example, we'll verify against the user's current session password
+    // In a real production app, you'd use supabase.auth.rpc or a specific verification check
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Quick Re-auth check
+    const { error } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: adminPassword,
+    });
+
+    if (error) {
+      alert("Mot de passe incorrect. Action refusée.");
+      return;
+    }
+
+    // If password is correct, execute the pending action
+    if (verifyingAction.type === 'delete') {
+      const { error: delError } = await supabase.from('reservations').delete().eq('id', verifyingAction.id);
+      if (!delError) fetchReservations();
+    } else if (verifyingAction.type === 'edit') {
+      setEditingRes(verifyingAction.data);
+      setIsReserveModalOpen(true);
+    }
+
+    setVerifyingAction(null);
+    setAdminPassword("");
+  };
+
   // Metric cards — only reserve count is real for now
   const metrics = [
     { key: "reserve",   title: "Réserve",          a: monthlyStats.totalLiters.toLocaleString("fr-FR") + " L", b: "Total ce mois" },
@@ -143,44 +186,78 @@ const handleAddNew = () => {
         ))}
       </div>
 
+      {/* Verification Modal */}
+      {verifyingAction && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-800 mb-2">Confirmation Requise</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              Veuillez entrer votre mot de passe administrateur pour {verifyingAction.type === 'delete' ? 'supprimer' : 'modifier'} cette donnée.
+            </p>
+            <input 
+              type="password"
+              className="w-full border rounded-lg p-3 mb-4 outline-none focus:ring-2 focus:ring-[#d27045]"
+              placeholder="Mot de passe"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              autoFocus
+            />
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setVerifyingAction(null)}
+                className="flex-1 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={confirmAction}
+                className="flex-1 py-2 bg-slate-800 text-white font-medium rounded-lg hover:bg-black"
+              >
+                Confirmer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Card Panel (placeholder — you'll build each one later) */}
       {activeCard === "reserve" && (
-  <div className="mt-4 overflow-x-auto">
-    <div className="mb-4 flex gap-4 text-xs font-bold text-slate-500 uppercase">
-      <span>Total Réservations: {monthlyStats.count}</span>
-    </div>
-    <table className="w-full text-left text-sm">
-      <thead>
-        <tr className="border-b border-slate-200 text-slate-400">
-          <th className="pb-2 font-medium">N° Réservation</th>
-          <th className="pb-2 font-medium">Créé le</th>
-          <th className="pb-2 font-medium text-right">Essence (L)</th>
-          <th className="pb-2 font-medium text-right">Gasoil (L)</th>
-          <th className="pb-2 font-medium text-right">Prix Essence</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-100">
-        {monthlyStats.data.map((res) => (
-          <tr 
-            key={res.id} 
-            onClick={() => handleEdit(res)} 
-            className="hover:bg-orange-50 cursor-pointer transition-colors"
-          >
-            <td className="py-3 font-semibold text-slate-700">{res.numero_reservation}</td>
-            <td className="py-3 text-slate-500">
-              {new Date(res.created_at).toLocaleDateString("fr-FR")}
-            </td>
-            <td className="py-3 text-right text-orange-600 font-medium">{res.litre_essence ?? 0}</td>
-            <td className="py-3 text-right text-blue-600 font-medium">{res.litre_gasoil ?? 0}</td>
-            <td className="py-3 text-right text-slate-700">
-              {res.price_essence ? `${res.price_essence.toLocaleString()} F` : "-"}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-)}
+        <div className="mt-4 overflow-x-auto">
+          <div className="mb-4 flex gap-4 text-xs font-bold text-slate-500 uppercase">
+            <span>Total Réservations: {monthlyStats.count}</span>
+          </div>
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-400">
+                <th className="pb-2 font-medium">N° Réservation</th>
+                <th className="pb-2 font-medium">Créé le</th>
+                <th className="pb-2 font-medium text-right">Essence (L)</th>
+                <th className="pb-2 font-medium text-right">Gasoil (L)</th>
+                <th className="pb-2 font-medium text-right">Prix Essence</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {monthlyStats.data.map((res) => (
+                <tr 
+                  key={res.id} 
+                  onClick={() => handleEdit(res)} 
+                  className="hover:bg-orange-50 cursor-pointer transition-colors"
+                >
+                  <td className="py-3 font-semibold text-slate-700">{res.numero_reservation}</td>
+                  <td className="py-3 text-slate-500">
+                    {new Date(res.created_at).toLocaleDateString("fr-FR")}
+                  </td>
+                  <td className="py-3 text-right text-orange-600 font-medium">{res.litre_essence ?? 0}</td>
+                  <td className="py-3 text-right text-blue-600 font-medium">{res.litre_gasoil ?? 0}</td>
+                  <td className="py-3 text-right text-slate-700">
+                    {res.price_essence ? `${res.price_essence.toLocaleString()} F` : "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Gestion Sonidep */}
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -236,7 +313,12 @@ const handleAddNew = () => {
               ) : (
                 <div>
                   {reservations.map((res) => (
-                    <ReservationRow key={res.id} res={res} onClick={() => handleEdit(res)} />
+                    <ReservationRow 
+                      key={res.id} 
+                      res={res} 
+                      onEdit={(data) => setVerifyingAction({ type: 'edit', id: data.id, data })}
+                      onDelete={(id) => setVerifyingAction({ type: 'delete', id })}
+                    />
                   ))}
                 </div>
               )}

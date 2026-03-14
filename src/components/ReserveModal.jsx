@@ -90,7 +90,9 @@ export default function ReserveModal({ isOpen, onClose, onSaved, editData }) { /
         
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50">
-          <h2 className="text-lg font-bold text-slate-800">Nouvelle Réservation</h2>
+          <h2 className="text-lg font-bold text-slate-800">
+            {editData?.id ? "Modifier la Réservation" : "Nouvelle Réservation"}
+          </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition">
             <i className="fa-solid fa-xmark text-xl"></i>
           </button>
