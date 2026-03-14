@@ -38,15 +38,27 @@ const ClientRow = ({ client, onEdit, onDelete, onAddDette }) => (
         </p>
       </div>
 
-      {/* Add dette button */}
-      <button
-        onClick={() => onAddDette(client)}
-        className="px-3 py-1.5 text-xs font-medium bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition"
-        title="Ajouter une dette"
-      >
-        <i className="fa-solid fa-plus mr-1" />
-        Dette
-      </button>
+      <div className="flex gap-2">
+        {/* Add dette button */}
+        <button
+          onClick={() => onAddDette(client)}
+          className="px-3 py-1.5 text-xs font-medium bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition"
+          title="Ajouter une dette"
+        >
+          <i className="fa-solid fa-plus mr-1" />
+          Dette
+        </button>
+
+        {/* Pay dette button (Disabled) */}
+        <button
+          disabled
+          className="px-3 py-1.5 text-xs font-medium bg-green-50 text-green-600 border border-green-200 rounded-lg opacity-60 cursor-not-allowed"
+          title="Payer la dette (Bientôt disponible)"
+        >
+          <i className="fa-solid fa-hand-holding-dollar mr-1" />
+          Payer
+        </button>
+      </div>
 
       {/* Edit / Delete */}
       <div className="flex gap-1 border-l pl-3 border-slate-200">
