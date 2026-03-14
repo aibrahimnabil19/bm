@@ -128,11 +128,19 @@ export default function Sonidep() {
       setReservations(resData ?? []);
       setLivraisons(livData ?? []);
 
-      // Compute duASonidep directly from livraisons — no factures table needed
-      // This avoids any double-counting from stale/duplicate facture records
+      // Fetch paid factures to exclude them from the "dû" total
+      const { data: facData } = await supabase
+        .from("factures").select("periode_debut, periode_fin, statut");
+
+      const paidPeriods = new Set(
+        (facData ?? [])
+          .filter((f) => f.statut === "payee")
+          .map((f) => `${f.periode_debut}__${f.periode_fin}`)
+      );
+
       const periods = groupLivraisonsByPeriod(livData ?? []);
       const totalDu = periods
-        .filter((p) => isPeriodClosed(p.fin))
+        .filter((p) => isPeriodClosed(p.fin) && !paidPeriods.has(`${p.debut}__${p.fin}`))
         .reduce((acc, p) => acc + computeMontant(p.livraisons), 0);
       setDuASonidep(totalDu);
 

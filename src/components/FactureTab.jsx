@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import PayerFactureModal from "./PayerFactureModal";
 import {
   groupLivraisonsByPeriod,
   isPeriodClosed,
@@ -14,6 +15,7 @@ export default function FactureTab({ livraisons, reservations, onDuChange }) {
   const [factures, setFactures] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [syncing, setSyncing] = useState(true);
+  const [payingFacture, setPayingFacture] = useState(null);
 
   // 2. Keep track of the latest callback without triggering re-renders
   const onDuChangeRef = useRef(onDuChange);
@@ -175,9 +177,8 @@ export default function FactureTab({ livraisons, reservations, onDuChange }) {
                 {/* Payé button — non-functional for now */}
                 {!isPaid && (
                   <button
-                    disabled
-                    className="px-3 py-1.5 text-xs font-medium bg-slate-200 text-slate-400 rounded-md cursor-not-allowed"
-                    title="Fonctionnalité à venir"
+                    onClick={() => setPayingFacture(f)}
+                    className="px-3 py-1.5 text-xs font-medium bg-[#d27045] text-white rounded-md hover:bg-[#b85b34] transition"
                   >
                     Marquer payée
                   </button>
@@ -242,6 +243,12 @@ export default function FactureTab({ livraisons, reservations, onDuChange }) {
           </div>
         );
       })}
+      <PayerFactureModal
+        isOpen={!!payingFacture}
+        facture={payingFacture}
+        onClose={() => setPayingFacture(null)}
+        onSaved={() => { setPayingFacture(null); syncFactures(); }}
+      />
     </div>
   );
 }
