@@ -137,35 +137,32 @@ export default function Sonidep() {
   }, [fetchAll]);
 
   // ── Computed stats ──────────────────────────────────────────────────────────
-const stats = useMemo(() => {
-  const now = new Date();
-  const m = now.getMonth();
-  const y = now.getFullYear();
+  const stats = useMemo(() => {
+    const now = new Date();
+    const m = now.getMonth();
+    const y = now.getFullYear();
 
-  const totalReserved = reservations.reduce(
-    (acc, r) => acc + (r.litre_essence ?? 0) + (r.litre_gasoil ?? 0), 0
-  );
+    const totalReserved = reservations.reduce(
+      (acc, r) => acc + (r.litre_essence ?? 0) + (r.litre_gasoil ?? 0), 0
+    );
 
-  const totalDelivered = livraisons.reduce((acc, l) => acc + Number(l.litre), 0);
+    // This is the total volume you have collected/delivered
+    const totalDelivered = livraisons.reduce((acc, l) => acc + Number(l.litre), 0);
 
-  const thisMonthLivraisons = livraisons.filter((l) => {
-    const d = new Date(l.date_livraison);
-    return d.getMonth() === m && d.getFullYear() === y;
-  });
+    const thisMonthLivraisons = livraisons.filter((l) => {
+      const d = new Date(l.date_livraison);
+      return d.getMonth() === m && d.getFullYear() === y;
+    });
 
-  const thisMonthLitres = thisMonthLivraisons.reduce((acc, l) => acc + Number(l.litre), 0);
+    const thisMonthLitres = thisMonthLivraisons.reduce((acc, l) => acc + Number(l.litre), 0);
 
-  // Remaining for the Metric Card
-  const livraisonRestante = Math.max(0, totalReserved - totalDelivered); 
-
-  return { 
-    totalReserved, 
-    totalDelivered, 
-    thisMonthLitres, 
-    livraisonRestante, // Use this for the "Livraison Restante" card
-    thisMonthLivraisons 
-  };
-}, [reservations, livraisons]);
+    return { 
+      totalReserved, 
+      totalDelivered, // Use this for the total collected
+      thisMonthLitres, 
+      thisMonthLivraisons 
+    };
+  }, [reservations, livraisons]);
 
   // ── Verify + confirm actions ────────────────────────────────────────────────
   const confirmAction = async () => {
@@ -197,7 +194,12 @@ const stats = useMemo(() => {
 const metrics = [
   { key: "reserve", title: "Réserve Totale", a: stats.totalReserved.toLocaleString("fr-FR") + " L" },
   { key: "livraison", title: "Livraison Totale", a: stats.thisMonthLitres.toLocaleString("fr-FR") + " L", b: "ce mois" },
-  { key: "restante", title: "Livraison Restante", a: stats.livraisonRestante.toLocaleString("fr-FR") + " L", b: "disponible" },
+  { 
+    key: "restante", 
+    title: "Livraison Collectée", // Updated Title
+    a: stats.totalDelivered.toLocaleString("fr-FR") + " L", // Updated to show total collected
+    b: "Total récupéré" 
+  },
   { key: "du", title: "Dû à Sonidep", a: "0", b: "FCFA" },
 ];
 
@@ -339,8 +341,8 @@ const metrics = [
         <div className="rounded-xl border border-slate-200 bg-white p-6 animate-in fade-in duration-200 shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h4 className="font-bold text-slate-700">Livraison Restante par Réservation</h4>
-              <p className="text-xs text-slate-400">Réservé — Livré = Restant</p>
+              <h4 className="font-bold text-slate-700">Volume Total Collecté</h4>
+              <p className="text-xs text-slate-400">Progression des enlèvements par réservation</p>
             </div>
             <button onClick={() => setActiveCard(null)} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
           </div>
@@ -350,7 +352,6 @@ const metrics = [
               const delivered = livraisons
                 .filter((l) => l.reservation_id === r.id)
                 .reduce((a, l) => a + Number(l.litre), 0);
-              const remaining = Math.max(0, totalRes - delivered);
               const pct = totalRes > 0 ? Math.round((delivered / totalRes) * 100) : 0;
 
               return (
@@ -358,7 +359,7 @@ const metrics = [
                   <div className="flex justify-between items-center mb-1">
                     <span className="text-sm font-semibold text-slate-700">{r.numero_reservation}</span>
                     <span className="text-xs text-slate-500">
-                      {delivered.toLocaleString("fr-FR")} / {totalRes.toLocaleString("fr-FR")} L
+                      {delivered.toLocaleString("fr-FR")} L récupérés
                     </span>
                   </div>
                   <div className="w-full bg-slate-200 rounded-full h-2">
@@ -368,8 +369,8 @@ const metrics = [
                     />
                   </div>
                   <div className="flex justify-between mt-1 text-xs text-slate-400">
-                    <span>{pct}% livré</span>
-                    <span className="font-medium text-slate-600">{remaining.toLocaleString("fr-FR")} L restant</span>
+                    <span>{pct}% du quota utilisé</span>
+                    <span className="font-medium text-slate-600">{totalRes.toLocaleString("fr-FR")} L au total</span>
                   </div>
                 </div>
               );
