@@ -4,9 +4,10 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import ClientModal from "./ClientModal";
 import AddDetteModal from "./AddDetteModal";
+import PayerDetteModal from "./PayerDetteModal";
 
 // ── Client Row ────────────────────────────────────────────────────────────────
-const ClientRow = ({ client, onEdit, onDelete, onAddDette }) => (
+const ClientRow = ({ client, onEdit, onDelete, onAddDette, onPayer }) => (
   <div className="flex flex-col sm:flex-row sm:items-center justify-between py-4 px-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition gap-4">
     
     {/* Left: identity */}
@@ -51,13 +52,16 @@ const ClientRow = ({ client, onEdit, onDelete, onAddDette }) => (
 
         {/* Pay dette button (Disabled) */}
         <button
-          disabled
-          className="px-3 py-1.5 text-xs font-medium bg-green-50 text-green-600 border border-green-200 rounded-lg opacity-60 cursor-not-allowed"
-          title="Payer la dette (Bientôt disponible)"
+          onClick={() => onPayer(client)}
+          disabled={Number(client.dette) === 0}
+          className={`px-3 py-1.5 text-xs font-medium bg-green-50 text-green-600 border border-green-200 rounded-lg transition ${
+            Number(client.dette) === 0 ? "opacity-40 cursor-not-allowed" : "hover:bg-green-100"
+          }`}
         >
           <i className="fa-solid fa-hand-holding-dollar mr-1" />
           Payer
         </button>
+
       </div>
 
       {/* Edit / Delete */}
@@ -86,6 +90,7 @@ export default function Clients() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [payerClient, setPayerClient] = useState(null);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -197,6 +202,7 @@ export default function Clients() {
               onEdit={(data) => setVerifyingAction({ type: "edit", id: data.id, data })}
               onDelete={(id) => setVerifyingAction({ type: "delete", id })}
               onAddDette={(c) => setDetteClient(c)}
+              onPayer={(c) => setPayerClient(c)} 
             />
           ))}
         </div>
@@ -253,6 +259,16 @@ export default function Clients() {
           onSaved={refreshData}
         />
       )}
+
+      {payerClient && (
+        <PayerDetteModal
+          key={payerClient.id}
+          isOpen={!!payerClient}
+          client={payerClient}
+          onClose={() => setPayerClient(null)}
+          onSaved={refreshData}
+        />
+      )}
     </div>
-  );
+  )
 }
