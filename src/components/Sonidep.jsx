@@ -118,6 +118,13 @@ const monthlyStats = useMemo(() => {
   };
 }, [reservations]);
 
+// Calculate total liters regardless of the month
+  const totalAllTimeLiters = useMemo(() => {
+    return reservations.reduce((acc, res) => 
+      acc + (res.litre_essence ?? 0) + (res.litre_gasoil ?? 0), 0
+    );
+  }, [reservations]);
+
   useEffect(() => {
   fetchReservations();
 }, [fetchReservations]);
@@ -164,7 +171,12 @@ const confirmAction = async () => {
 
   // Metric cards — only reserve count is real for now
   const metrics = [
-    { key: "reserve",   title: "Réserve",          a: monthlyStats.totalLiters.toLocaleString("fr-FR") + " L", b: "Total ce mois" },
+    { 
+      key: "reserve",   
+      title: "Réserve",          
+      a: totalAllTimeLiters.toLocaleString("fr-FR") + " L", // Changed this
+      b: "Total disponible" // Changed the subtitle text
+    },
     { key: "livraison", title: "Livraison Totale",  a: 0,                   b: "ce mois" },
     { key: "restant",   title: "Livraison Restante",a: 0,                   b: "ce mois" },
     { key: "du",        title: "Dû à Sonidep",      a: 0,                   b: "FCFA" },
@@ -188,7 +200,7 @@ const confirmAction = async () => {
 
       {/* Verification Modal */}
       {verifyingAction && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl border border-slate-200">
             <h3 className="text-lg font-bold text-slate-800 mb-2">Confirmation Requise</h3>
             <p className="text-sm text-slate-500 mb-4">
