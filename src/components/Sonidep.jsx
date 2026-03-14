@@ -118,28 +118,45 @@ export default function Sonidep() {
   
 
   // ── Fetchers ────────────────────────────────────────────────────────────────
- const fetchAll = React.useCallback(async () => {
-  try {
-    const [{ data: resData }, { data: livData }, { data: facData }] = await Promise.all([
-      supabase.from("reservations").select("*").order("date_reservation", { ascending: false }),
-      supabase.from("livraisons").select("*").order("date_livraison", { ascending: false }),
-      supabase.from("factures").select("*"),  // ← add this
-    ]);
-    setReservations(resData ?? []);
-    setLivraisons(livData ?? []);
+  const fetchAll = React.useCallback(async () => {
+      try {
+        const [{ data: resData }, { data: livData }, { data: facData }] = await Promise.all([
+          supabase.from("reservations").select("*").order("date_reservation", { ascending: false }),
+          supabase.from("livraisons").select("*").order("date_livraison", { ascending: false }),
+          supabase.from("factures").select("*"),  
+        ]);
+        setReservations(resData ?? []);
+        setLivraisons(livData ?? []);
 
-    // Compute dû directly here — no need to wait for FactureTab to mount
-    const totalDu = (facData ?? [])
-      .filter((f) => f.statut === "en_attente")
-      .reduce((acc, f) => acc + Number(f.montant_total), 0);
-    setDuASonidep(totalDu);
+        // ── THE FIX ────────────────────────────────────────────────────────────
+        // Compute dû dynamically based on actual livraisons to avoid "ghost" amounts
+        const totalDu = (facData ?? [])
+          .filter((f) => f.statut === "en_attente")
+          .reduce((acc, f) => {
+            // 1. Find livraisons that fall inside this facture's period
+            const matchingLivs = (livData ?? []).filter(
+              (l) => l.date_livraison >= f.periode_debut && l.date_livraison <= f.periode_fin
+            );
+            
+            // 2. Calculate the real amount based on the remaining bons
+            const realMontant = matchingLivs.reduce(
+              (sum, l) => sum + (Number(l.litre) * Number(l.prix)), 
+              0
+            );
+            
+            // 3. Add to total (if matchingLivs is empty, realMontant is 0)
+            return acc + realMontant;
+          }, 0);
 
-  } catch (error) {
-    console.error("Error fetching data:", error);
-  } finally {
-    setLoading(false);
-  }
-}, []);
+        setDuASonidep(totalDu);
+        // ───────────────────────────────────────────────────────────────────────
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }, []);
 
   // 2. Use an empty dependency array if you only want this to run once on mount,
   // or keep [fetchAll] since useCallback now stabilizes it.
