@@ -5,6 +5,7 @@ import ReserveModal from "./ReserveModal";
 import LivraisonModal from "./LivraisonModal";
 import { supabase } from "@/lib/supabase";
 import FactureTab from "./FactureTab";
+import { groupLivraisonsByPeriod, isPeriodClosed, computeMontant } from "@/utils/facturePeriods";
 
 // ── Metric Card ───────────────────────────────────────────────────────────────
 const MetricCard = ({ title, a, b, onClick, active }) => (
@@ -119,44 +120,28 @@ export default function Sonidep() {
 
   // ── Fetchers ────────────────────────────────────────────────────────────────
   const fetchAll = React.useCallback(async () => {
-      try {
-        const [{ data: resData }, { data: livData }, { data: facData }] = await Promise.all([
-          supabase.from("reservations").select("*").order("date_reservation", { ascending: false }),
-          supabase.from("livraisons").select("*").order("date_livraison", { ascending: false }),
-          supabase.from("factures").select("*"),  
-        ]);
-        setReservations(resData ?? []);
-        setLivraisons(livData ?? []);
+    try {
+      const [{ data: resData }, { data: livData }] = await Promise.all([
+        supabase.from("reservations").select("*").order("date_reservation", { ascending: false }),
+        supabase.from("livraisons").select("*").order("date_livraison", { ascending: false }),
+      ]);
+      setReservations(resData ?? []);
+      setLivraisons(livData ?? []);
 
-        // ── THE FIX ────────────────────────────────────────────────────────────
-        // Compute dû dynamically based on actual livraisons to avoid "ghost" amounts
-        const totalDu = (facData ?? [])
-          .filter((f) => f.statut === "en_attente")
-          .reduce((acc, f) => {
-            // 1. Find livraisons that fall inside this facture's period
-            const matchingLivs = (livData ?? []).filter(
-              (l) => l.date_livraison >= f.periode_debut && l.date_livraison <= f.periode_fin
-            );
-            
-            // 2. Calculate the real amount based on the remaining bons
-            const realMontant = matchingLivs.reduce(
-              (sum, l) => sum + (Number(l.litre) * Number(l.prix)), 
-              0
-            );
-            
-            // 3. Add to total (if matchingLivs is empty, realMontant is 0)
-            return acc + realMontant;
-          }, 0);
+      // Compute duASonidep directly from livraisons — no factures table needed
+      // This avoids any double-counting from stale/duplicate facture records
+      const periods = groupLivraisonsByPeriod(livData ?? []);
+      const totalDu = periods
+        .filter((p) => isPeriodClosed(p.fin))
+        .reduce((acc, p) => acc + computeMontant(p.livraisons), 0);
+      setDuASonidep(totalDu);
 
-        setDuASonidep(totalDu);
-        // ───────────────────────────────────────────────────────────────────────
-
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    }, []);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // 2. Use an empty dependency array if you only want this to run once on mount,
   // or keep [fetchAll] since useCallback now stabilizes it.
