@@ -68,7 +68,7 @@ export default function Login() {
       <section className="max-w-4xl w-full bg-white rounded-2xl shadow-lg overflow-hidden grid grid-cols-1 md:grid-cols-2">
 
         {/* Left: Illustration / brand */}
-        <div className="hidden md:flex flex-col items-start justify-center gap-6 p-10 bg-linear-to-br from-blue-600 to-indigo-700 text-white">
+        <div className="hidden md:flex flex-col items-start justify-center gap-6 p-10 bg-linear-to-br from-white to-[#e46c37] text-slate-900">
           <div className="text-3xl font-semibold tracking-tight">BM Trading</div>
           <p className="text-sm opacity-90 max-w-xs">Bon retour, connectez-vous pour gérer vos stations, consulter vos rapports et reprendre là où vous vous étiez arrêté.</p>
 
@@ -140,7 +140,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full inline-flex items-center justify-center rounded-lg bg-indigo-600 text-white px-4 py-3 text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition disabled:opacity-60"
+                className="w-full inline-flex items-center justify-center rounded-lg bg-[#d27045] text-white px-4 py-3 text-sm font-medium hover:bg-[#e46c37] focus:outline-none focus:ring-2 focus:ring-indigo-400 transition disabled:opacity-60"
               >
                 {loading ? 'Connexion...' : 'Se connecter'}
               </button>
