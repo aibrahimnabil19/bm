@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import ReserveModal from "./ReserveModal";
 import LivraisonModal from "./LivraisonModal";
 import { supabase } from "@/lib/supabase";
+import FactureTab from "./FactureTab";
 
 // ── Metric Card ───────────────────────────────────────────────────────────────
 const MetricCard = ({ title, a, b, onClick, active }) => (
@@ -109,6 +110,9 @@ export default function Sonidep() {
   // Password verification
   const [verifyingAction, setVerifyingAction] = useState(null);
   const [adminPassword, setAdminPassword] = useState("");
+
+  const [duASonidep, setDuASonidep] = useState(0);
+
 
   const tabs = ["Reserve", "Livraison", "Facture"];
   
@@ -219,7 +223,7 @@ export default function Sonidep() {
       a: stats.totalDelivered.toLocaleString("fr-FR") + " L", 
       b: "En attente de déchargement" 
     },
-    { key: "du", title: "Dû à Sonidep", a: "0", b: "FCFA" },
+    { key: "du", title: "Dû à Sonidep", a: duASonidep.toLocaleString("fr-FR"), b: "FCFA" },
   ];
 
   return (
@@ -476,8 +480,14 @@ export default function Sonidep() {
 
           {activeTab === "Facture" && (
             <div className="animate-in fade-in duration-300">
-              <h4 className="text-sm font-bold text-slate-400 uppercase mb-4 tracking-widest">Facturation</h4>
-              <p className="text-slate-600">Historique et génération des factures.</p>
+              <div className="w-full flex justify-between items-center mb-6">
+                <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Facturation</h4>
+              </div>
+              <FactureTab
+                livraisons={livraisons}
+                reservations={reservations}
+                onDuChange={setDuASonidep}
+              />
             </div>
           )}
         </div>
