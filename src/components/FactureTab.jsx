@@ -87,61 +87,56 @@ export default function FactureTab({ livraisons, reservations, onDuChange }) {
       })
     );
 
-    // If a paid facture now has new livraisons, reset it to en_attente
+    // ... inside syncFactures ...
+
+    // 1. Identify invoices that need reopening 
+    // (Only if the recomputed montant is different from the recorded montant)
     const toReopen = (existing ?? []).filter((f) => {
       if (f.statut !== "payee") return false;
+      
       const period = periods.find(
         (p) => p.debut === f.periode_debut && p.fin === f.periode_fin
       );
-      return period && period.livraisons.length > 0;
+      if (!period) return false;
+
+      const realMontant = computeMontant(period.livraisons);
+      // Reopen only if the price changed (meaning new slips were added or edited)
+      return Math.abs(realMontant - Number(f.montant_total)) > 0.01;
     });
 
+    // 2. Execute the reopen updates
     if (toReopen.length > 0) {
-      const reopenResults = await Promise.all(
+      await Promise.all(
         toReopen.map((f) => {
           const period = periods.find(
             (p) => p.debut === f.periode_debut && p.fin === f.periode_fin
           );
-          return supabase.from("factures").update({
-            statut: "en_attente",
-            date_paiement: null,
-            montant_total: computeMontant(period.livraisons),
-          }).eq("id", f.id);
+          return supabase
+            .from("factures")
+            .update({
+              statut: "en_attente",
+              date_paiement: null,
+              montant_total: computeMontant(period.livraisons),
+            })
+            .eq("id", f.id);
         })
       );
-      // Log any errors so we can see if updates are silently failing
-      reopenResults.forEach(({ error }, i) => {
-        if (error) console.error(`Failed to reopen facture ${toReopen[i].id}:`, error);
-      });
     }
 
-    if (toReopen.length > 0) {
-      await Promise.all(
-        toReopen.map((f) =>
-          supabase.from("factures").update({
-            statut: "en_attente",
-            date_paiement: null,
-            montant_total: computeMontant(
-              periods.find((p) => p.debut === f.periode_debut && p.fin === f.periode_fin).livraisons
-            ),
-          }).eq("id", f.id)
-        )
-      );
-    }
-
+    // 3. Handle creation of new periods
     if (toCreate.length > 0) {
       await supabase.from("factures").insert(toCreate);
-    } else {
-      processFactures(existing ?? [], periods);
-    }
+    } 
 
+    // 4. Finally, fetch the absolute latest state to show the user
     const { data: refreshed } = await supabase
       .from("factures")
       .select("*")
       .order("periode_debut", { ascending: false });
-    processFactures(refreshed ?? [], periods);
 
+    processFactures(refreshed ?? [], periods);
     setSyncing(false);
+
   }, [livraisons, processFactures]); 
 
   useEffect(() => {
