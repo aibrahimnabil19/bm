@@ -23,8 +23,13 @@ const MetricCard = ({ title, a, b, onClick, active }) => (
 );
 
 // ── Reservation Row ───────────────────────────────────────────────────────────
-const ReservationRow = ({ res, onEdit, onDelete }) => {
+const ReservationRow = ({ res, livraisons, onEdit, onDelete }) => {
   const totalLitres = (res.litre_essence ?? 0) + (res.litre_gasoil ?? 0);
+  const delivered = livraisons
+    .filter((l) => l.reservation_id === res.id)
+    .reduce((acc, l) => acc + Number(l.litre), 0);
+  const remaining = Math.max(0, totalLitres - delivered);
+
   return (
     <div className="group flex items-center justify-between py-3 px-4 rounded-lg hover:bg-slate-50 border border-slate-100 mb-2 transition">
       <div className="flex flex-col">
@@ -33,12 +38,16 @@ const ReservationRow = ({ res, onEdit, onDelete }) => {
       </div>
       <div className="flex items-center gap-4">
         <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-medium capitalize">{res.type}</span>
-        <span className="text-sm font-bold text-slate-700">{totalLitres.toLocaleString("fr-FR")} L</span>
+        {/* Show remaining / total */}
+        <div className="flex flex-col items-end">
+          <span className="text-sm font-bold text-slate-700">{remaining.toLocaleString("fr-FR")} L</span>
+          <span className="text-xs text-slate-400">sur {totalLitres.toLocaleString("fr-FR")} L</span>
+        </div>
         <div className="flex items-center gap-2 ml-2 border-l pl-4 border-slate-200">
-          <button onClick={() => onEdit(res)} className="p-2 text-slate-400 hover:text-blue-600 transition" title="Modifier">
+          <button onClick={() => onEdit(res)} className="p-2 text-slate-400 hover:text-blue-600 transition">
             <i className="fa-solid fa-pen text-sm" />
           </button>
-          <button onClick={() => onDelete(res.id)} className="p-2 text-slate-400 hover:text-red-600 transition" title="Supprimer">
+          <button onClick={() => onDelete(res.id)} className="p-2 text-slate-400 hover:text-red-600 transition">
             <i className="fa-solid fa-trash text-sm" />
           </button>
         </div>
@@ -129,26 +138,27 @@ export default function Sonidep() {
 
   // ── Computed stats ──────────────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const now = new Date();
-    const m = now.getMonth();
-    const y = now.getFullYear();
+  const now = new Date();
+  const m = now.getMonth();
+  const y = now.getFullYear();
 
-    const totalReserved = reservations.reduce(
-      (acc, r) => acc + (r.litre_essence ?? 0) + (r.litre_gasoil ?? 0), 0
-    );
+  const totalReserved = reservations.reduce(
+    (acc, r) => acc + (r.litre_essence ?? 0) + (r.litre_gasoil ?? 0), 0
+  );
 
-    const totalDelivered = livraisons.reduce((acc, l) => acc + Number(l.litre), 0);
+  const totalDelivered = livraisons.reduce((acc, l) => acc + Number(l.litre), 0);
 
-    const thisMonthLivraisons = livraisons.filter((l) => {
-      const d = new Date(l.date_livraison);
-      return d.getMonth() === m && d.getFullYear() === y;
-    });
-    const thisMonthLitres = thisMonthLivraisons.reduce((acc, l) => acc + Number(l.litre), 0);
+  const thisMonthLivraisons = livraisons.filter((l) => {
+    const d = new Date(l.date_livraison);
+    return d.getMonth() === m && d.getFullYear() === y;
+  });
+  const thisMonthLitres = thisMonthLivraisons.reduce((acc, l) => acc + Number(l.litre), 0);
 
-    const restante = Math.max(0, totalReserved - totalDelivered);
+  const netReserve = Math.max(0, totalReserved - totalDelivered); // ← NEW
+  const restante = Math.max(0, totalReserved - totalDelivered);   // keeping for card panel
 
-    return { totalReserved, totalDelivered, thisMonthLitres, restante, thisMonthLivraisons };
-  }, [reservations, livraisons]);
+  return { totalReserved, totalDelivered, thisMonthLitres, netReserve, restante, thisMonthLivraisons };
+}, [reservations, livraisons]);
 
   // ── Verify + confirm actions ────────────────────────────────────────────────
   const confirmAction = async () => {
@@ -178,7 +188,7 @@ export default function Sonidep() {
 
   // ── Metric cards ─────────────────────────────────────────────────────────────
   const metrics = [
-    { key: "reserve",   title: "Réserve Totale",       a: stats.totalReserved.toLocaleString("fr-FR") + " L" },
+    { key: "reserve", title: "Réserve Totale", a: stats.netReserve.toLocaleString("fr-FR") + " L" },
     { key: "livraison", title: "Livraison Totale",      a: stats.thisMonthLitres.toLocaleString("fr-FR") + " L", b: "ce mois" },
     { key: "restante",  title: "Livraison Restante",    a: stats.restante.toLocaleString("fr-FR") + " L" },
     { key: "du",        title: "Dû à Sonidep",          a: "0", b: "FCFA" },
@@ -395,7 +405,7 @@ export default function Sonidep() {
                 </div>
               ) : (
                 reservations.map((res) => (
-                  <ReservationRow key={res.id} res={res}
+                  <ReservationRow key={res.id} res={res} livraisons={livraisons}
                     onEdit={(data) => setVerifyingAction({ type: "edit-res", id: data.id, data })}
                     onDelete={(id) => setVerifyingAction({ type: "delete-res", id })}
                   />
