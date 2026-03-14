@@ -161,6 +161,8 @@ export default function Sonidep() {
     );
 
     const totalDelivered = livraisons.reduce((acc, l) => acc + Number(l.litre), 0);
+    const totalDistribue = livraisons.reduce((acc, l) => acc + Number(l.litre_distribue ?? 0), 0);
+    const livraisonRestante = Math.max(0, totalDelivered - totalDistribue);
 
     // 2. Current balance at Sonidep
     const remainingReserve = Math.max(0, totalReserved - totalDelivered);
@@ -178,7 +180,8 @@ export default function Sonidep() {
     return { 
       totalReserved, 
       remainingReserve, 
-      totalDelivered, 
+      totalDelivered,
+      livraisonRestante,
       thisMonthLitres, 
       thisMonthLivraisons 
     };
@@ -229,7 +232,7 @@ export default function Sonidep() {
       title: "Livraison Restante", 
       // Note: To get your 1500L, you'll need a "Distribution" field in your DB.
       // For now, this shows the total you have in hand to distribute.
-      a: stats.totalDelivered.toLocaleString("fr-FR") + " L", 
+      a: stats.livraisonRestante.toLocaleString("fr-FR") + " L", 
       b: "En attente de déchargement" 
     },
     { key: "du", title: "Dû à Sonidep", a: duASonidep.toLocaleString("fr-FR"), b: "FCFA" },
@@ -369,39 +372,92 @@ export default function Sonidep() {
         </div>
       )}
 
-      {activeCard === "restante" && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 ...">
-          {/* ... Header ... */}
-          <div className="space-y-3">
-            {reservations.map((r) => {
-              const totalRes = (r.litre_essence ?? 0) + (r.litre_gasoil ?? 0);
-              const delivered = livraisons
-                .filter((l) => l.reservation_id === r.id)
-                .reduce((a, l) => a + Number(l.litre), 0);
-              
-              // FIX: Calculate what is still left to take FROM this specific reservation
-              const leftToCollect = Math.max(0, totalRes - delivered);
-              const pct = totalRes > 0 ? Math.round((delivered / totalRes) * 100) : 0;
-
-              return (
-                <div key={r.id} className="...">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-semibold text-slate-700">{r.numero_reservation}</span>
-                    <span className="text-xs text-slate-500">
-                      {leftToCollect.toLocaleString("fr-FR")} L à collecter {/* Changed label */}
-                    </span>
-                  </div>
-                  {/* ... Progress bar ... */}
-                  <div className="flex justify-between mt-1 text-xs text-slate-400">
-                    <span>{pct}% collecté</span> {/* Changed label */}
-                    <span className="font-medium text-slate-600">Total: {totalRes.toLocaleString("fr-FR")} L</span>
-                  </div>
-                </div>
-              );
-            })}
+    {activeCard === "restante" && (
+      <div className="rounded-xl border border-slate-200 bg-white p-6 animate-in fade-in duration-200 shadow-sm">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h4 className="font-bold text-slate-700">Livraisons — Stock non distribué</h4>
+            <p className="text-xs text-slate-400">
+              {stats.livraisonRestante.toLocaleString("fr-FR")} L restant sur {stats.totalDelivered.toLocaleString("fr-FR")} L collectés
+            </p>
           </div>
+          <button onClick={() => setActiveCard(null)} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
         </div>
-      )}
+
+        {livraisons.length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-6">Aucune livraison.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="border-b border-slate-100 text-slate-400 text-xs uppercase">
+                  <th className="pb-2 font-medium">N° Bon</th>
+                  <th className="pb-2 font-medium">Date</th>
+                  <th className="pb-2 font-medium">Type</th>
+                  <th className="pb-2 font-medium text-right">Total (L)</th>
+                  <th className="pb-2 font-medium text-right">Distribué (L)</th>
+                  <th className="pb-2 font-medium text-right">Restant (L)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {livraisons.map((l) => {
+                  const distribue = Number(l.litre_distribue ?? 0);
+                  const total = Number(l.litre);
+                  const restant = Math.max(0, total - distribue);
+                  const pct = total > 0 ? Math.round((distribue / total) * 100) : 0;
+
+                  return (
+                    <tr key={l.id} className="hover:bg-slate-50">
+                      <td className="py-3 font-semibold text-slate-700">{l.numero_bon}</td>
+                      <td className="py-3 text-slate-500">
+                        {new Date(l.date_livraison).toLocaleDateString("fr-FR")}
+                      </td>
+                      <td className="py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
+                          l.type === "gasoil" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                        }`}>
+                          {l.type}
+                        </span>
+                      </td>
+                      <td className="py-3 text-right text-slate-600">{total.toLocaleString("fr-FR")}</td>
+                      <td className="py-3 text-right text-slate-500">{distribue.toLocaleString("fr-FR")}</td>
+                      <td className="py-3 text-right">
+                        <div className="flex flex-col items-end gap-1">
+                          <span className={`font-bold ${restant === 0 ? "text-green-600" : "text-[#d27045]"}`}>
+                            {restant.toLocaleString("fr-FR")}
+                          </span>
+                          {/* Mini progress bar */}
+                          <div className="w-16 bg-slate-200 rounded-full h-1.5">
+                            <div
+                              className="bg-[#d27045] h-1.5 rounded-full transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-slate-200">
+                  <td colSpan={3} className="pt-2 text-sm font-bold text-slate-600">Total</td>
+                  <td className="pt-2 text-right font-bold text-slate-700">
+                    {stats.totalDelivered.toLocaleString("fr-FR")}
+                  </td>
+                  <td className="pt-2 text-right font-bold text-slate-500">
+                    {livraisons.reduce((a, l) => a + Number(l.litre_distribue ?? 0), 0).toLocaleString("fr-FR")}
+                  </td>
+                  <td className="pt-2 text-right font-bold text-[#d27045]">
+                    {stats.livraisonRestante.toLocaleString("fr-FR")}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </div>
+    )}
 
       {/* ── Gestion Sonidep Section ──────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
