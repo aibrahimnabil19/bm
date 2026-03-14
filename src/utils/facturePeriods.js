@@ -1,27 +1,32 @@
 // utils/facturePeriods.js
 
-// Given a date string, returns the period it belongs to
+// Formats a Date object to YYYY-MM-DD using LOCAL time, not UTC
+function toLocalDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export function getPeriodForDate(dateStr) {
-  const date = new Date(dateStr);
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  const day = date.getDate();
+  // Parse the date parts directly to avoid timezone shifts
+  const [year, month, day] = dateStr.split('-').map(Number);
 
   let start, end;
   if (day <= 10) {
-    start = new Date(year, month, 1);
-    end = new Date(year, month, 10);
+    start = new Date(year, month - 1, 1);
+    end = new Date(year, month - 1, 10);
   } else if (day <= 20) {
-    start = new Date(year, month, 11);
-    end = new Date(year, month, 20);
+    start = new Date(year, month - 1, 11);
+    end = new Date(year, month - 1, 20);
   } else {
-    start = new Date(year, month, 21);
-    end = new Date(year, month + 1, 0); // last day of month
+    start = new Date(year, month - 1, 21);
+    end = new Date(year, month, 0); // last day of month, local
   }
 
   return {
-    debut: start.toISOString().split('T')[0],
-    fin: end.toISOString().split('T')[0],
+    debut: toLocalDateStr(start),
+    fin: toLocalDateStr(end),
   };
 }
 
