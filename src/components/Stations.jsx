@@ -4,10 +4,13 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import StationModal from "./StationModal";
 import ApprovisionnerModal from "./ApprovisionnerModal";
+import StationDepenseModal from "./StationDepenseModal";
 
 // ── Station Card ──────────────────────────────────────────────────────────────
-  const StationCard = ({ station, activites, onEdit, onDelete, onApprovisionner }) => {
+  const StationCard = ({ station, activites, onEdit, onDelete, onApprovisionner, onDepense }) => {
     const [showActivites, setShowActivites] = useState(false);
+    const [expandedStation, setExpandedStation] = useState(null);
+    const [depenseStation, setDepenseStation] = useState(null);
     const stationActivites = activites
       .filter((a) => a.station_id === station.id)
       .slice(0, 10);
@@ -70,8 +73,10 @@ import ApprovisionnerModal from "./ApprovisionnerModal";
             <i className="fa-solid fa-gas-pump" />
             Approvisionner
           </button>
-          <button disabled
-            className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium bg-slate-100 text-slate-400 rounded-lg cursor-not-allowed">
+          <button
+            onClick={() => onDepense(station)}
+            className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 transition"
+          >
             <i className="fa-solid fa-money-bill" />
             Dépense
           </button>
@@ -140,6 +145,7 @@ export default function Stations() {
 
   const [activites, setActivites] = useState([]);
   const [expandedStation, setExpandedStation] = useState(null);
+  const [depenseStation, setDepenseStation] = useState(null);
 
   // Password verification
   const [verifyingAction, setVerifyingAction] = useState(null);
@@ -228,6 +234,7 @@ export default function Stations() {
               onEdit={(data) => setVerifyingAction({ type: "edit", id: data.id, data })}
               onDelete={(id) => setVerifyingAction({ type: "delete", id })}
               onApprovisionner={(s) => setApprovStation(s)}
+              onDepense={(s) => setDepenseStation(s)}
             />
           ))}
         </div>
@@ -285,6 +292,16 @@ export default function Stations() {
           station={approvStation}
           onClose={() => setApprovStation(null)}
           onSaved={refreshData} // Passed the trigger
+        />
+      )}
+
+      {depenseStation && (
+        <StationDepenseModal
+          key={depenseStation.id}
+          isOpen={!!depenseStation}
+          station={depenseStation}
+          onClose={() => setDepenseStation(null)}
+          onSaved={refreshData}
         />
       )}
     </div>
