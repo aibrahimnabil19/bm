@@ -137,7 +137,7 @@ export default function Sonidep() {
   }, [fetchAll]);
 
   // ── Computed stats ──────────────────────────────────────────────────────────
-  const stats = useMemo(() => {
+const stats = useMemo(() => {
   const now = new Date();
   const m = now.getMonth();
   const y = now.getFullYear();
@@ -152,12 +152,19 @@ export default function Sonidep() {
     const d = new Date(l.date_livraison);
     return d.getMonth() === m && d.getFullYear() === y;
   });
+
   const thisMonthLitres = thisMonthLivraisons.reduce((acc, l) => acc + Number(l.litre), 0);
 
-  const netReserve = Math.max(0, totalReserved - totalDelivered); // ← NEW
-  const restante = Math.max(0, totalReserved - totalDelivered);   // keeping for card panel
+  // Remaining for the Metric Card
+  const livraisonRestante = Math.max(0, totalReserved - totalDelivered); 
 
-  return { totalReserved, totalDelivered, thisMonthLitres, netReserve, restante, thisMonthLivraisons };
+  return { 
+    totalReserved, 
+    totalDelivered, 
+    thisMonthLitres, 
+    livraisonRestante, // Use this for the "Livraison Restante" card
+    thisMonthLivraisons 
+  };
 }, [reservations, livraisons]);
 
   // ── Verify + confirm actions ────────────────────────────────────────────────
@@ -187,12 +194,12 @@ export default function Sonidep() {
   };
 
   // ── Metric cards ─────────────────────────────────────────────────────────────
-  const metrics = [
-    { key: "reserve", title: "Réserve Totale", a: stats.netReserve.toLocaleString("fr-FR") + " L" },
-    { key: "livraison", title: "Livraison Totale",      a: stats.thisMonthLitres.toLocaleString("fr-FR") + " L", b: "ce mois" },
-    { key: "restante",  title: "Livraison Restante",    a: stats.restante.toLocaleString("fr-FR") + " L" },
-    { key: "du",        title: "Dû à Sonidep",          a: "0", b: "FCFA" },
-  ];
+const metrics = [
+  { key: "reserve", title: "Réserve Totale", a: stats.totalReserved.toLocaleString("fr-FR") + " L" },
+  { key: "livraison", title: "Livraison Totale", a: stats.thisMonthLitres.toLocaleString("fr-FR") + " L", b: "ce mois" },
+  { key: "restante", title: "Livraison Restante", a: stats.livraisonRestante.toLocaleString("fr-FR") + " L", b: "disponible" },
+  { key: "du", title: "Dû à Sonidep", a: "0", b: "FCFA" },
+];
 
   return (
     <div className="w-full space-y-6 relative">
@@ -232,18 +239,29 @@ export default function Sonidep() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {reservations.map((r) => (
-                  <tr key={r.id} className="hover:bg-slate-50">
-                    <td className="py-2 font-semibold text-slate-700">{r.numero_reservation}</td>
-                    <td className="py-2 text-slate-500">{new Date(r.date_reservation).toLocaleDateString("fr-FR")}</td>
-                    <td className="py-2 capitalize text-slate-500">{r.type}</td>
-                    <td className="py-2 text-right text-orange-600">{r.litre_essence ?? "—"}</td>
-                    <td className="py-2 text-right text-blue-600">{r.litre_gasoil ?? "—"}</td>
-                    <td className="py-2 text-right font-bold text-slate-700">
-                      {((r.litre_essence ?? 0) + (r.litre_gasoil ?? 0)).toLocaleString("fr-FR")}
-                    </td>
-                  </tr>
-                ))}
+                {reservations.map((r) => {
+                  // Calculate delivery for THIS specific reservation
+                  const deliveredForThisRes = livraisons
+                    .filter((l) => l.reservation_id === r.id)
+                    .reduce((acc, l) => acc + Number(l.litre), 0);
+                  
+                  const totalForThisRes = (r.litre_essence ?? 0) + (r.litre_gasoil ?? 0);
+                  const remainingForThisRes = Math.max(0, totalForThisRes - deliveredForThisRes);
+
+                  return (
+                    <tr key={r.id} className="hover:bg-slate-50">
+                      <td className="py-2 font-semibold text-slate-700">{r.numero_reservation}</td>
+                      <td className="py-2 text-slate-500">{new Date(r.date_reservation).toLocaleDateString("fr-FR")}</td>
+                      <td className="py-2 capitalize text-slate-500">{r.type}</td>
+                      <td className="py-2 text-right text-orange-600">{r.litre_essence ?? "—"}</td>
+                      <td className="py-2 text-right text-blue-600">{r.litre_gasoil ?? "—"}</td>
+                      {/* Change this cell to show the balance (Restant) */}
+                      <td className="py-2 text-right font-bold text-[#d27045]">
+                        {remainingForThisRes.toLocaleString("fr-FR")} L
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-slate-200">
