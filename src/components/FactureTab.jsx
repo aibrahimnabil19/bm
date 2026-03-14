@@ -21,28 +21,28 @@ export default function FactureTab({ livraisons, reservations, onDuChange }) {
     onDuChangeRef.current = onDuChange;
   }, [onDuChange]);
 
-    const processFactures = useCallback((dbFactures, periods) => {
-        const enriched = dbFactures
-        .map((f) => {
-            const period = periods.find(
-            (p) => p.debut === f.periode_debut && p.fin === f.periode_fin
-            );
-            return { ...f, livraisons: period?.livraisons ?? [] };
-        })
-        // 1. NEW: Filter out any facture that has 0 bons
-        .filter((f) => f.livraisons.length > 0) 
-        // 2. Keep your existing hide logic
-        .filter((f) => !shouldHideFacture(f));
+  const processFactures = useCallback((dbFactures, periods) => {
+    const enriched = dbFactures
+      .map((f) => {
+        const period = periods.find(
+          (p) => p.debut === f.periode_debut && p.fin === f.periode_fin
+        );
+        const livs = period?.livraisons ?? [];
+        // Always recompute montant_total from actual livraisons, never trust the DB value
+        const realMontant = computeMontant(livs);
+        return { ...f, livraisons: livs, montant_total: realMontant };
+      })
+      .filter((f) => f.livraisons.length > 0)
+      .filter((f) => !shouldHideFacture(f));
 
-        setFactures(enriched);
+    setFactures(enriched);
 
-        const totalDu = enriched
-        .filter((f) => f.statut === "en_attente")
-        .reduce((acc, f) => acc + Number(f.montant_total), 0);
-        
-        // Use the ref here so this function doesn't depend on 'onDuChange'
-        onDuChangeRef.current?.(totalDu);
-    }, []); // Dependencies empty because we use the Ref and SetState
+    const totalDu = enriched
+      .filter((f) => f.statut === "en_attente")
+      .reduce((acc, f) => acc + f.montant_total, 0);
+
+    onDuChangeRef.current?.(totalDu);
+  }, []);
 
   const syncFactures = useCallback(async () => {
     // 3. Only set syncing to true if it isn't already (prevents redundant updates)
@@ -64,16 +64,38 @@ export default function FactureTab({ livraisons, reservations, onDuChange }) {
         montant_total: computeMontant(p.livraisons),
       }));
 
+    const toUpdate = (existing ?? []).filter((f) => {
+      const period = periods.find(
+        (p) => p.debut === f.periode_debut && p.fin === f.periode_fin
+      );
+      if (!period) return false;
+      const realMontant = computeMontant(period.livraisons);
+      return Math.abs(realMontant - Number(f.montant_total)) > 0.01; // only if it differs
+    });
+
+    await Promise.all(
+      toUpdate.map((f) => {
+        const period = periods.find(
+          (p) => p.debut === f.periode_debut && p.fin === f.periode_fin
+        );
+        return supabase
+          .from("factures")
+          .update({ montant_total: computeMontant(period.livraisons) })
+          .eq("id", f.id);
+      })
+    );
+
     if (toCreate.length > 0) {
       await supabase.from("factures").insert(toCreate);
-      const { data: refreshed } = await supabase
-        .from("factures")
-        .select("*")
-        .order("periode_debut", { ascending: false });
-      processFactures(refreshed ?? [], periods);
     } else {
       processFactures(existing ?? [], periods);
     }
+
+    const { data: refreshed } = await supabase
+      .from("factures")
+      .select("*")
+      .order("periode_debut", { ascending: false });
+    processFactures(refreshed ?? [], periods);
 
     setSyncing(false);
   }, [livraisons, processFactures]); 
