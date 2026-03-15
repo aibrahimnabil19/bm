@@ -45,11 +45,20 @@ export default function Login() {
         return;
       }
 
+      // --- START OF NEW REDIRECT LOGIC ---
+      // Check if there's a ?from param in the URL
+      const params = new URLSearchParams(window.location.search);
+      const from = params.get('from');
+
       if (profile.role === 'admin') {
-        router.push('/admin');
+        // If they are admin, send them to the 'from' URL if it exists, otherwise to /admin/accueil
+        router.push(from && from.startsWith('/admin') ? from : '/admin/accueil');
       } else {
+        // For gerant and lecteur roles
         router.push('/dashboard');
       }
+      // --- END OF NEW REDIRECT LOGIC ---
+
     } catch (err) {
       setError('Une erreur est survenue. Veuillez réessayer.');
     } finally {
@@ -91,7 +100,7 @@ export default function Login() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
-                  className="block w-full rounded-lg border border-slate-200 px-4 py-3 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+                  className="block w-full rounded-lg border border-slate-200 px-4 py-3 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#d27045] focus:border-transparent transition"
                   placeholder="Votre nom d'utilisateur"
                 />
               </div>
@@ -106,7 +115,7 @@ export default function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="block w-full rounded-lg border border-slate-200 px-4 py-3 pr-12 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+                    className="block w-full rounded-lg border border-slate-200 px-4 py-3 pr-12 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#d27045] focus:border-transparent transition"
                     placeholder="••••••••"
                     aria-describedby="togglePassword"
                   />
@@ -128,13 +137,13 @@ export default function Login() {
               )}
 
               <div className="flex items-center justify-between">
-                <a href="#" className="text-sm text-indigo-600 hover:underline">Mot de passe oublié?</a>
+                <a href="#" className="text-sm text-[#d27045] hover:underline">Mot de passe oublié?</a>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full inline-flex items-center justify-center rounded-lg bg-[#d27045] text-white px-4 py-3 text-sm font-medium hover:bg-[#e46c37] focus:outline-none focus:ring-2 focus:ring-indigo-400 transition disabled:opacity-60"
+                className="w-full inline-flex items-center justify-center rounded-lg bg-[#d27045] text-white px-4 py-3 text-sm font-medium hover:bg-[#b85b34] focus:outline-none focus:ring-2 focus:ring-[#d27045] transition disabled:opacity-60"
               >
                 {loading ? 'Connexion...' : 'Se connecter'}
               </button>

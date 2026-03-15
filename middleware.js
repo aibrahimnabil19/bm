@@ -31,36 +31,46 @@ export async function middleware(request) {
     }
   )
 
+  const { pathname } = request.nextUrl
+
+  // 1. Skip Next.js internals and API routes to prevent infinite loops on Vercel
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.match(/\.(.*)$/)
+  ) {
+    return response
+  }
+
+  // Fetch the user securely
   const { data: { user } } = await supabase.auth.getUser()
 
-  // --- NEW LOGIC START ---
-  const isLoginPage = request.nextUrl.pathname === '/'
-  
-  // 1. Logged in and on login page → redirect to admin dashboard
+  const isLoginPage = pathname === '/'
+
+  // 2. Logged in and on login page → redirect to dashboard
   if (user && isLoginPage) {
     return NextResponse.redirect(new URL('/admin/accueil', request.url))
   }
-  // --- NEW LOGIC END ---
 
   // Protect Admin Routes
-  if (request.nextUrl.pathname.startsWith('/admin')) {
-    // 2. Not logged in → redirect to login with a "from" parameter
+  if (pathname.startsWith('/admin')) {
+    
+    // 3. Not logged in → redirect to login with the "?from" parameter
     if (!user) {
       const loginUrl = new URL('/', request.url)
-      loginUrl.searchParams.set('from', request.nextUrl.pathname) // This lets you return here after login
+      loginUrl.searchParams.set('from', pathname) 
       return NextResponse.redirect(loginUrl)
     }
 
-    // Role check (Your existing logic)
+    // 4. Role check - ALLOW admin, gerant, and lecteur
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
 
-    // Note: If you want 'gerant' and 'lecteur' to also access /admin, 
-    // change this condition to: !['admin', 'gerant', 'lecteur'].includes(profile?.role)
-    if (profile?.role !== 'admin') {
+    // If the user's role is missing or invalid, kick them out
+    if (!['admin', 'gerant', 'lecteur'].includes(profile?.role)) {
       return NextResponse.redirect(new URL('/', request.url))
     }
   }
@@ -69,6 +79,8 @@ export async function middleware(request) {
 }
 
 export const config = {
-  // Update your matcher to include the root '/' so the login redirect works
-  matcher: ['/', '/admin/:path*', '/dashboard/:path*'],
+  // Use the broader matcher from the instructions to ensure Vercel catches all routes properly
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }
