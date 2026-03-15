@@ -31,34 +31,36 @@ export default function UserModal({ isOpen, onClose, onSaved, editData, stations
 
       } else {
         if (!formData.password || formData.password.length < 6) {
-          throw new Error("Le mot de passe doit avoir au moins 6 caractères.");
+            throw new Error("Le mot de passe doit avoir au moins 6 caractères.");
         }
 
-        // All users share the admin email — Supabase requires unique emails
-        // so we append a unique suffix to differentiate auth accounts
-        const uniqueEmail = `${formData.username.trim().toLowerCase()}+${Date.now()}@bmtrading.internal`;
+        const internalEmail = `${formData.username.trim().toLowerCase()}@bmtrading.internal`;
 
         const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-          email: uniqueEmail,
-          password: formData.password,
-          options: {
+            email: internalEmail,
+            password: formData.password,
+            options: {
             data: {
-              username: formData.username.trim().toLowerCase(),
-              role: formData.role,
+                username: formData.username.trim().toLowerCase(),
+                role: formData.role,
             }
-          }
+            }
         });
         if (signUpErr) throw new Error(signUpErr.message);
+        if (!signUpData.user) throw new Error("Échec de la création du compte.");
+
+        // Wait briefly for the trigger to fire first, then upsert with full data
+        await new Promise((r) => setTimeout(r, 500));
 
         const { error: profErr } = await supabase.from("profiles").upsert({
-          id: signUpData.user.id,
-          username: formData.username.trim().toLowerCase(),
-          email: adminEmail, // store admin email as contact email
-          role: formData.role,
-          station_id: formData.role === "gerant" ? (formData.stationId || null) : null,
-        });
+            id: signUpData.user.id,
+            username: formData.username.trim().toLowerCase(),
+            email: adminEmail,
+            role: formData.role,
+            station_id: formData.role === "gerant" ? (formData.stationId || null) : null,
+        }, { onConflict: "id" });
         if (profErr) throw new Error(profErr.message);
-      }
+        }
 
       onClose();
       onSaved?.();
