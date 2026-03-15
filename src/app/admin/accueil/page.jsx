@@ -1,11 +1,10 @@
-import React from 'react'
+import AdminLayout from '@/components/AdminLayout'
+import Accueil from '@/components/Accueil'
 
-const page = () => {
+export default function Page() {
   return (
-    <main>
-        
-    </main>
+    <AdminLayout>
+      <Accueil />
+    </AdminLayout>
   )
 }
-
-export default page

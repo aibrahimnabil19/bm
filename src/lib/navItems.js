@@ -1,5 +1,5 @@
 export const navItems = [
-  { href: '#', label: 'Accueil', iconClass: 'fa-solid fa-house' },
+  { href: '/admin/accueil', label: 'Accueil', iconClass: 'fa-solid fa-house' },
   { href: '/admin/sonidep', label: 'Sonidep', iconClass: 'fa-solid fa-truck-droplet' },
   { href: '/admin/stations', label: 'Station', iconClass: 'fa-solid fa-gas-pump' },
   { href: '/admin/clients', label: 'Client', iconClass: 'fa-solid fa-user' },
