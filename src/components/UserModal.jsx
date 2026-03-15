@@ -30,43 +30,54 @@ export default function UserModal({ isOpen, onClose, onSaved, editData, stations
         if (profErr) throw new Error(profErr.message);
 
         } else {
-        if (!formData.password || formData.password.length < 6) {
-            throw new Error("Le mot de passe doit avoir au moins 6 caractères.");
-        }
+  if (!formData.password || formData.password.length < 6) {
+    throw new Error("Le mot de passe doit avoir au moins 6 caractères.");
+  }
 
-        const internalEmail = `${formData.username.trim().toLowerCase()}@bmtrading.internal`;
+  // Save admin session before signUp replaces it
+  const { data: { session: adminSession } } = await supabase.auth.getSession();
+  const adminAccessToken = adminSession?.access_token;
+  const adminRefreshToken = adminSession?.refresh_token;
 
-        // Step 1: Sign up the user
-        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-            email: internalEmail,
-            password: formData.password,
-        });
+  const internalEmail = `${formData.username.trim().toLowerCase()}@bmtrading.internal`;
 
-        if (signUpErr) throw new Error(signUpErr.message);
-        if (!signUpData?.user?.id) throw new Error("Échec de la création du compte.");
+  const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+    email: internalEmail,
+    password: formData.password,
+  });
 
-        const userId = signUpData.user.id;
+  if (signUpErr) throw new Error(signUpErr.message);
+  if (!signUpData?.user?.id) throw new Error("Échec de la création du compte.");
 
-        // Step 2: Insert profile directly — no trigger needed
-        const { error: profErr } = await supabase.from("profiles").insert({
-            id: userId,
-            username: formData.username.trim().toLowerCase(),
-            email: adminEmail,
-            role: formData.role,
-            station_id: formData.role === "gerant" ? (formData.stationId || null) : null,
-        });
+  const userId = signUpData.user.id;
 
-        // If insert fails because trigger already created the row, update instead
-        if (profErr) {
-            const { error: updateErr } = await supabase.from("profiles").update({
-            username: formData.username.trim().toLowerCase(),
-            email: adminEmail,
-            role: formData.role,
-            station_id: formData.role === "gerant" ? (formData.stationId || null) : null,
-            }).eq("id", userId);
-            if (updateErr) throw new Error(updateErr.message);
-        }
-        }
+  // Restore admin session immediately
+  await supabase.auth.setSession({
+    access_token: adminAccessToken,
+    refresh_token: adminRefreshToken,
+  });
+
+  // Now insert profile as admin
+  const { error: profErr } = await supabase.from("profiles").insert({
+    id: userId,
+    username: formData.username.trim().toLowerCase(),
+    email: adminEmail,
+    role: formData.role,
+    station_id: formData.role === "gerant" ? (formData.stationId || null) : null,
+  });
+
+  if (profErr) {
+    // Try update in case row already exists
+    const { error: updateErr } = await supabase.from("profiles").update({
+      username: formData.username.trim().toLowerCase(),
+      email: adminEmail,
+      role: formData.role,
+      station_id: formData.role === "gerant" ? (formData.stationId || null) : null,
+    }).eq("id", userId);
+    if (updateErr) throw new Error(updateErr.message);
+  }
+}
+        
 
         onClose();
         onSaved?.();
