@@ -10,6 +10,8 @@ export default function MonCompteModal({ isOpen, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [savingPwd, setSavingPwd] = useState(false);
   const [tab, setTab] = useState("infos");
+  const [emailData, setEmailData] = useState({ nouvelEmail: "", passwordConfirm: "" });
+  const [savingEmail, setSavingEmail] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -25,6 +27,7 @@ export default function MonCompteModal({ isOpen, onClose, onSaved }) {
     load();
     setTab("infos");
     setPasswordData({ current: "", nouveau: "", confirm: "" });
+    setEmailData({ nouvelEmail: "", passwordConfirm: "" });
   }, [isOpen]);
 
   if (!isOpen || !profile) return null;
@@ -84,6 +87,38 @@ export default function MonCompteModal({ isOpen, onClose, onSaved }) {
     }
   };
 
+  const handleChangeEmail = async (e) => {
+    e.preventDefault();
+    if (!emailData.nouvelEmail.includes("@")) {
+        alert("Veuillez entrer une adresse email valide.");
+        return;
+    }
+    setSavingEmail(true);
+    try {
+        // Verify current password first
+        const currentEmail = `${profile.username}@bmtrading.app`;
+        const { error: verifyErr } = await supabase.auth.signInWithPassword({
+        email: currentEmail,
+        password: emailData.passwordConfirm,
+        });
+        if (verifyErr) throw new Error("Mot de passe incorrect.");
+
+        // Update email in Supabase Auth — Supabase will send a confirmation to the new email
+        const { error: updateErr } = await supabase.auth.updateUser({
+        email: emailData.nouvelEmail.trim().toLowerCase(),
+        });
+        if (updateErr) throw new Error(updateErr.message);
+
+        alert("Un email de confirmation a été envoyé à " + emailData.nouvelEmail + ". Veuillez confirmer le changement depuis votre boîte mail.");
+        setEmailData({ nouvelEmail: "", passwordConfirm: "" });
+        onClose();
+    } catch (err) {
+        alert("Erreur: " + err.message);
+    } finally {
+        setSavingEmail(false);
+    }
+ };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
@@ -99,6 +134,7 @@ export default function MonCompteModal({ isOpen, onClose, onSaved }) {
         <div className="flex border-b border-slate-100">
           {[
             { key: "infos", label: "Informations", icon: "fa-solid fa-user" },
+            { key: "email", label: "Email", icon: "fa-solid fa-envelope" },
             { key: "password", label: "Mot de passe", icon: "fa-solid fa-lock" },
           ].map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)}
@@ -169,6 +205,69 @@ export default function MonCompteModal({ isOpen, onClose, onSaved }) {
               </div>
             </form>
           )}
+
+          {tab === "email" && (
+            <form onSubmit={handleChangeEmail} className="space-y-4">
+
+                {/* Current email */}
+                <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Email actuel</label>
+                <input type="text" disabled
+                    value={`${profile.username}@bmtrading.app`}
+                    className="w-full border border-slate-200 rounded-md p-2 bg-slate-50 text-slate-400 text-sm"
+                />
+                </div>
+
+                {/* New email */}
+                <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Nouvel email *
+                </label>
+                <input
+                    type="email"
+                    required
+                    value={emailData.nouvelEmail}
+                    onChange={(e) => setEmailData((p) => ({ ...p, nouvelEmail: e.target.value }))}
+                    placeholder="exemple@gmail.com"
+                    className="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-[#d27045] outline-none transition"
+                />
+                </div>
+
+                {/* Password confirmation */}
+                <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Confirmer avec votre mot de passe *
+                </label>
+                <input
+                    type="password"
+                    required
+                    value={emailData.passwordConfirm}
+                    onChange={(e) => setEmailData((p) => ({ ...p, passwordConfirm: e.target.value }))}
+                    placeholder="••••••••"
+                    className="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-[#d27045] outline-none transition"
+                />
+                </div>
+
+                {/* Info notice */}
+                <div className="rounded-lg bg-blue-50 border border-blue-100 p-3">
+                <p className="text-xs text-blue-700">
+                    <i className="fa-solid fa-circle-info mr-1" />
+                    Un email de confirmation sera envoyé à votre nouvelle adresse. Le changement sera effectif après confirmation.
+                </p>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button type="button" onClick={onClose}
+                    className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition">
+                    Annuler
+                </button>
+                <button type="submit" disabled={savingEmail}
+                    className="px-4 py-2 text-sm font-medium text-white bg-[#d27045] hover:bg-[#b85b34] rounded-md transition disabled:opacity-60">
+                    {savingEmail ? "Envoi en cours..." : "Changer l'email"}
+                </button>
+                </div>
+            </form>
+            )}
 
           {tab === "password" && (
             <form onSubmit={handleChangePassword} className="space-y-4">
