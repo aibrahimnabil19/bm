@@ -12,56 +12,50 @@ export default function Login() {
   const router = useRouter()
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
+    e.preventDefault();
+    setError('');
 
     if (!username.trim() || !password) {
-      setError('Veuillez entrer votre nom d\'utilisateur et mot de passe.')
-      return
+      setError('Veuillez entrer votre nom d\'utilisateur et mot de passe.');
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
     try {
-      // 1. Look up the profile to get the email linked to this username
+      // Look up profile by username to get the stored email
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, role')
+        .select('id, role, email')
         .eq('username', username.trim().toLowerCase())
-        .single()
+        .single();
 
-      if (profileError || !profile) {
-        setError('Nom d\'utilisateur ou mot de passe incorrect.')
-        return
+      if (profileError || !profile || !profile.email) {
+        setError('Nom d\'utilisateur ou mot de passe incorrect.');
+        return;
       }
 
-      // 2. Get the email from auth.users via a known convention
-      //    (we use username@bmtrading.app as the email format)
-      const email = `${username.trim().toLowerCase()}@bmtrading.app`
-
-      // 3. Sign in with Supabase Auth
+      // Sign in using the real stored email
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
+        email: profile.email,
         password,
-      })
+      });
 
       if (signInError) {
-        setError('Nom d\'utilisateur ou mot de passe incorrect.')
-        return
+        setError('Nom d\'utilisateur ou mot de passe incorrect.');
+        return;
       }
 
-      // 4. Redirect based on role
       if (profile.role === 'admin') {
-        router.push('/admin')
+        router.push('/admin/accueil');
       } else {
-        router.push('/dashboard') // other roles → other pages later
+        router.push('/dashboard');
       }
-
     } catch (err) {
-      setError('Une erreur est survenue. Veuillez réessayer.')
+      setError('Une erreur est survenue. Veuillez réessayer.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <main className="min-h-screen flex items-center justify-center p-6">

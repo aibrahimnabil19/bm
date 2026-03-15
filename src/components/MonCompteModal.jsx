@@ -21,7 +21,7 @@ export default function MonCompteModal({ isOpen, onClose, onSaved }) {
         .select("*").eq("id", user.id).single();
       if (prof) {
         setProfile(prof);
-        setFormData({ username: prof.username ?? "", nom: prof.nom ?? "" });
+        setFormData({ username: prof.username ?? "", nom: prof.nom ?? "", email: prof.email ?? "" });
       }
     };
     load();
@@ -65,7 +65,7 @@ export default function MonCompteModal({ isOpen, onClose, onSaved }) {
     setSavingPwd(true);
     try {
       // Verify current password first
-      const email = `${profile.username}@bmtrading.app`;
+      const email = profile.email;
       const { error: verifyErr } = await supabase.auth.signInWithPassword({
         email, password: passwordData.current
       });
@@ -87,37 +87,43 @@ export default function MonCompteModal({ isOpen, onClose, onSaved }) {
     }
   };
 
-  const handleChangeEmail = async (e) => {
-    e.preventDefault();
-    if (!emailData.nouvelEmail.includes("@")) {
-        alert("Veuillez entrer une adresse email valide.");
-        return;
-    }
-    setSavingEmail(true);
-    try {
-        // Verify current password first
-        const currentEmail = `${profile.username}@bmtrading.app`;
-        const { error: verifyErr } = await supabase.auth.signInWithPassword({
-        email: currentEmail,
-        password: emailData.passwordConfirm,
-        });
-        if (verifyErr) throw new Error("Mot de passe incorrect.");
+    const handleChangeEmail = async (e) => {
+        e.preventDefault();
+        if (!emailData.nouvelEmail.includes("@")) {
+            alert("Veuillez entrer une adresse email valide.");
+            return;
+        }
+        setSavingEmail(true);
+        try {
+            // Verify password using the current stored email
+            const { error: verifyErr } = await supabase.auth.signInWithPassword({
+            email: profile.email,
+            password: emailData.passwordConfirm,
+            });
+            if (verifyErr) throw new Error("Mot de passe incorrect.");
 
-        // Update email in Supabase Auth — Supabase will send a confirmation to the new email
-        const { error: updateErr } = await supabase.auth.updateUser({
-        email: emailData.nouvelEmail.trim().toLowerCase(),
-        });
-        if (updateErr) throw new Error(updateErr.message);
+            // Update email in Supabase Auth
+            const { error: updateErr } = await supabase.auth.updateUser({
+            email: emailData.nouvelEmail.trim().toLowerCase(),
+            });
+            if (updateErr) throw new Error(updateErr.message);
 
-        alert("Un email de confirmation a été envoyé à " + emailData.nouvelEmail + ". Veuillez confirmer le changement depuis votre boîte mail.");
-        setEmailData({ nouvelEmail: "", passwordConfirm: "" });
-        onClose();
-    } catch (err) {
-        alert("Erreur: " + err.message);
-    } finally {
-        setSavingEmail(false);
-    }
- };
+            // Update email in profiles table immediately
+            const { error: profErr } = await supabase.from("profiles")
+            .update({ email: emailData.nouvelEmail.trim().toLowerCase() })
+            .eq("id", profile.id);
+            if (profErr) throw new Error(profErr.message);
+
+            alert("Email mis à jour. Un email de confirmation a été envoyé à " + emailData.nouvelEmail + ".");
+            setEmailData({ nouvelEmail: "", passwordConfirm: "" });
+            onSaved?.();
+            onClose();
+        } catch (err) {
+            alert("Erreur: " + err.message);
+        } finally {
+            setSavingEmail(false);
+        }
+    };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -157,11 +163,10 @@ export default function MonCompteModal({ isOpen, onClose, onSaved }) {
               {/* Email (read-only) */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                <input type="text" disabled
-                  value={`${profile.username}@bmtrading.app`}
+                <input type="text" disabled value={profile.email ?? "—"}
                   className="w-full border border-slate-200 rounded-md p-2 bg-slate-50 text-slate-400 text-sm"
                 />
-                <p className="text-xs text-slate-400 mt-1">Généré automatiquement depuis le nom d&apos;utilisateur</p>
+                <p className="text-xs text-slate-400 mt-1">Modifiable depuis l&apos;onglet Email</p>
               </div>
 
               <div>
@@ -213,7 +218,7 @@ export default function MonCompteModal({ isOpen, onClose, onSaved }) {
                 <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Email actuel</label>
                 <input type="text" disabled
-                    value={`${profile.username}@bmtrading.app`}
+                    value={profile.email ?? "—"}
                     className="w-full border border-slate-200 rounded-md p-2 bg-slate-50 text-slate-400 text-sm"
                 />
                 </div>

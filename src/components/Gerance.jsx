@@ -24,6 +24,7 @@ const UserRow = ({ user, stations, onEdit, onDelete, isCurrentUser }) => {
         <div>
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-slate-800">{user.username}</p>
+            {user.email && <p className="text-xs text-slate-400">{user.email}</p>}
             {isCurrentUser && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 font-medium">Vous</span>
             )}
@@ -99,8 +100,9 @@ export default function Gerance() {
   const confirmAction = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     const { data: profile } = await supabase.from("profiles")
-      .select("username").eq("id", user.id).single();
-    const email = `${profile.username}@bmtrading.app`;
+    .select("email").eq("id", user.id).single();
+    const email = profile.email;
+    
 
     const { error } = await supabase.auth.signInWithPassword({ email, password: adminPassword });
     if (error) { alert("Mot de passe incorrect."); return; }
