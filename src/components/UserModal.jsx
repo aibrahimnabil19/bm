@@ -16,60 +16,66 @@ export default function UserModal({ isOpen, onClose, onSaved, editData, stations
 
   const isEdit = !!editData?.id;
 
-  const handleSubmit = async (e) => {
+    const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
 
     try {
-      if (isEdit) {
+        if (isEdit) {
         const { error: profErr } = await supabase.from("profiles").update({
-          username: formData.username.trim().toLowerCase(),
-          role: formData.role,
-          station_id: formData.role === "gerant" ? (formData.stationId || null) : null,
+            username: formData.username.trim().toLowerCase(),
+            role: formData.role,
+            station_id: formData.role === "gerant" ? (formData.stationId || null) : null,
         }).eq("id", editData.id);
         if (profErr) throw new Error(profErr.message);
 
-      } else {
+        } else {
         if (!formData.password || formData.password.length < 6) {
             throw new Error("Le mot de passe doit avoir au moins 6 caractères.");
         }
 
         const internalEmail = `${formData.username.trim().toLowerCase()}@bmtrading.internal`;
 
+        // Step 1: Sign up the user
         const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
             email: internalEmail,
             password: formData.password,
-            options: {
-            data: {
-                username: formData.username.trim().toLowerCase(),
-                role: formData.role,
-            }
-            }
         });
+
         if (signUpErr) throw new Error(signUpErr.message);
-        if (!signUpData.user) throw new Error("Échec de la création du compte.");
+        if (!signUpData?.user?.id) throw new Error("Échec de la création du compte.");
 
-        // Wait briefly for the trigger to fire first, then upsert with full data
-        await new Promise((r) => setTimeout(r, 500));
+        const userId = signUpData.user.id;
 
-        const { error: profErr } = await supabase.from("profiles").upsert({
-            id: signUpData.user.id,
+        // Step 2: Insert profile directly — no trigger needed
+        const { error: profErr } = await supabase.from("profiles").insert({
+            id: userId,
             username: formData.username.trim().toLowerCase(),
             email: adminEmail,
             role: formData.role,
             station_id: formData.role === "gerant" ? (formData.stationId || null) : null,
-        }, { onConflict: "id" });
-        if (profErr) throw new Error(profErr.message);
+        });
+
+        // If insert fails because trigger already created the row, update instead
+        if (profErr) {
+            const { error: updateErr } = await supabase.from("profiles").update({
+            username: formData.username.trim().toLowerCase(),
+            email: adminEmail,
+            role: formData.role,
+            station_id: formData.role === "gerant" ? (formData.stationId || null) : null,
+            }).eq("id", userId);
+            if (updateErr) throw new Error(updateErr.message);
+        }
         }
 
-      onClose();
-      onSaved?.();
+        onClose();
+        onSaved?.();
     } catch (err) {
-      alert("Erreur: " + err.message);
+        alert("Erreur: " + err.message);
     } finally {
-      setSaving(false);
+        setSaving(false);
     }
-  };
+    };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
