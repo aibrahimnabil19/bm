@@ -29,7 +29,7 @@ const UserRow = ({ user, stations, onEdit, onDelete, isCurrentUser }) => {
               <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 font-medium">Vous</span>
             )}
           </div>
-          {user.nom && <p className="text-xs text-slate-500">{user.nom}</p>}
+          {/* {user.nom && <p className="text-xs text-slate-500">{user.nom}</p>} */}
           {assignedStation && (
             <p className="text-xs text-slate-400 mt-0.5">
               <i className="fa-solid fa-gas-pump mr-1" />
@@ -65,6 +65,7 @@ export default function Gerance() {
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [adminEmail, setAdminEmail] = useState("");
 
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -82,6 +83,9 @@ export default function Gerance() {
       supabase.from("stations").select("id, nom, ville").order("nom"),
     ]);
 
+    const adminProfile = profilesData?.find((p) => p.id === user?.id);
+
+    setAdminEmail(adminProfile?.email ?? "");
     setUsers(profilesData ?? []);
     setStations(stationsData ?? []);
     setLoading(false);
@@ -250,6 +254,7 @@ export default function Gerance() {
         onSaved={fetchAll}
         editData={editingUser}
         stations={stations}
+        adminEmail={adminEmail}  
       />
 
       <MonCompteModal

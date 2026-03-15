@@ -3,11 +3,9 @@
 import React, { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-export default function UserModal({ isOpen, onClose, onSaved, editData, stations }) {
+export default function UserModal({ isOpen, onClose, onSaved, editData, stations, adminEmail }) {
   const [formData, setFormData] = useState({
     username: editData?.username ?? "",
-    nom: editData?.nom ?? "",
-    email: editData?.email ?? "",
     role: editData?.role ?? "gerant",
     stationId: editData?.station_id ?? "",
     password: "",
@@ -24,11 +22,8 @@ export default function UserModal({ isOpen, onClose, onSaved, editData, stations
 
     try {
       if (isEdit) {
-        // Update profile fields only (email/password changes are separate)
         const { error: profErr } = await supabase.from("profiles").update({
           username: formData.username.trim().toLowerCase(),
-          nom: formData.nom.trim() || null,
-          email: formData.email.trim().toLowerCase(),
           role: formData.role,
           station_id: formData.role === "gerant" ? (formData.stationId || null) : null,
         }).eq("id", editData.id);
@@ -38,13 +33,13 @@ export default function UserModal({ isOpen, onClose, onSaved, editData, stations
         if (!formData.password || formData.password.length < 6) {
           throw new Error("Le mot de passe doit avoir au moins 6 caractères.");
         }
-        if (!formData.email.includes("@")) {
-          throw new Error("Veuillez entrer une adresse email valide.");
-        }
 
-        // Create user with their real email
+        // All users share the admin email — Supabase requires unique emails
+        // so we append a unique suffix to differentiate auth accounts
+        const uniqueEmail = `${formData.username.trim().toLowerCase()}+${Date.now()}@bmtrading.internal`;
+
         const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-          email: formData.email.trim().toLowerCase(),
+          email: uniqueEmail,
           password: formData.password,
           options: {
             data: {
@@ -55,12 +50,10 @@ export default function UserModal({ isOpen, onClose, onSaved, editData, stations
         });
         if (signUpErr) throw new Error(signUpErr.message);
 
-        // Upsert profile with email stored
         const { error: profErr } = await supabase.from("profiles").upsert({
           id: signUpData.user.id,
           username: formData.username.trim().toLowerCase(),
-          nom: formData.nom.trim() || null,
-          email: formData.email.trim().toLowerCase(),
+          email: adminEmail, // store admin email as contact email
           role: formData.role,
           station_id: formData.role === "gerant" ? (formData.stationId || null) : null,
         });
@@ -98,33 +91,6 @@ export default function UserModal({ isOpen, onClose, onSaved, editData, stations
             <input type="text" required value={formData.username}
               onChange={(e) => setFormData((p) => ({ ...p, username: e.target.value }))}
               placeholder="Ex: station_nord"
-              className="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-[#d27045] outline-none transition"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Email *
-            </label>
-            <input type="email" required value={formData.email}
-              onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
-              placeholder="exemple@gmail.com"
-              disabled={isEdit} // email changes happen separately via MonCompte
-              className={`w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-[#d27045] outline-none transition ${isEdit ? "bg-slate-50 text-slate-400" : ""}`}
-            />
-            {isEdit && (
-              <p className="text-xs text-slate-400 mt-1">Pour changer l&apos;email, utilisez &quot;Mon compte&quot;.</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Nom complet
-              <span className="text-xs text-slate-400 font-normal ml-1">optionnel</span>
-            </label>
-            <input type="text" value={formData.nom}
-              onChange={(e) => setFormData((p) => ({ ...p, nom: e.target.value }))}
-              placeholder="Ex: Moussa Issa"
               className="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-[#d27045] outline-none transition"
             />
           </div>

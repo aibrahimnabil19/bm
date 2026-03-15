@@ -21,7 +21,7 @@ export default function MonCompteModal({ isOpen, onClose, onSaved }) {
         .select("*").eq("id", user.id).single();
       if (prof) {
         setProfile(prof);
-        setFormData({ username: prof.username ?? "", nom: prof.nom ?? "", email: prof.email ?? "" });
+        setFormData({ username: prof.username ?? "" });
       }
     };
     load();
@@ -36,10 +36,9 @@ export default function MonCompteModal({ isOpen, onClose, onSaved }) {
     e.preventDefault();
     setSaving(true);
     try {
-      const { error: profErr } = await supabase.from("profiles").update({
-        username: formData.username.trim().toLowerCase(),
-        nom: formData.nom.trim() || null,
-      }).eq("id", profile.id);
+        const { error: profErr } = await supabase.from("profiles").update({
+            username: formData.username.trim().toLowerCase(),
+        }).eq("id", profile.id);
       if (profErr) throw new Error(profErr.message);
 
       alert("Informations mises à jour.");
